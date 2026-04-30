@@ -4,10 +4,11 @@ This repository contains a lightweight Pygame prototype for a grid-based charact
 
 ## Current Features
 
-- Tile-based checkerboard background with alternating green shades
+- Tile-based tarmac background using `assets/elems/tarmac.png`
 - Keyboard movement using arrow keys
 - Direction-aware character sprite swapping (`forward`, `back`, `left`, `right`)
-- Movement constrained to the visible grid bounds
+- Randomized building placement (`building_1`, `building_2`, `building_3`) with one of each per run
+- Movement constrained to the visible grid bounds and blocked by building obstacles
 
 ## Project Structure
 
@@ -61,6 +62,22 @@ python run.py
 - Added orientation-aware sprite switching for all four directions
 - Organized repository structure into `src/` and `assets/sprites/`
 - Added project documentation and MIT license
+
+### v0.2.0 - Tarmac and Obstacles
+
+- Replaced checkerboard rendering with tiled tarmac background
+- Added one random placement each for three building assets
+- Added collision logic to prevent entering building-occupied tiles
+
+### v0.2.1 - Grid Lines and Interior Spawns
+
+- Added faint gray tile borders to preserve clear grid visibility over tarmac
+- Restricted random building placement to interior cells (no edge placement)
+
+### v0.2.2 - Full-Window Grid Fit
+
+- Aligned window dimensions exactly to grid dimensions to remove right and bottom overflow
+- Reduced grid border intensity using low-alpha gray overlay lines
 
 ## Contributing
 
