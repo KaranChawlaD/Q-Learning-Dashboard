@@ -5,15 +5,20 @@ This repository contains a lightweight Pygame prototype for a grid-based charact
 ## Current Features
 
 - Tile-based tarmac background using `assets/elems/tarmac.png`
-- Keyboard movement using arrow keys
+- Manual keyboard movement mode (`run.py`)
 - Direction-aware character sprite swapping (`forward`, `back`, `left`, `right`)
-- Randomized building placement (`building_1`, `building_2`, `building_3`) with one of each per run
-- Movement constrained to the visible grid bounds and blocked by building obstacles
+- Manual mode uses fixed map layout: player starts top-left, bank is bottom-right, and buildings are fixed obstacles
+- Separate A* demo mode (`run_astar.py`) where buildings and bank are randomized each run
+- A* layout generation guarantees a valid path from start to bank
 
 ## Project Structure
 
-- `run.py`: Entry point to start the prototype
-- `src/main.py`: Main Pygame loop, rendering, input handling, and movement logic
+- `run.py`: Entry point for manual-control prototype
+- `run_astar.py`: Entry point for A* pathfinding demo
+- `src/main.py`: Manual-control Pygame loop and movement logic
+- `src/astar_demo.py`: A* pathfinding demo and auto-movement logic
+- `assets/elems/`: Environment assets (`tarmac`, `building_1..3`, `bank`)
+- `assets/sprites/`: Character facing-direction sprites
 - `assets/sprites/business_man_1_forward.png`: Character sprite facing down/forward
 - `assets/sprites/business_man_1_back.png`: Character sprite facing up/backward
 - `assets/sprites/business_man_1_left.png`: Character sprite facing left
@@ -35,7 +40,11 @@ pip install pygame
 From the project directory:
 
 ```bash
+# Manual-control mode
 python run.py
+
+# A* pathfinding demo
+python run_astar.py
 ```
 
 ## Controls
@@ -78,6 +87,36 @@ python run.py
 
 - Aligned window dimensions exactly to grid dimensions to remove right and bottom overflow
 - Reduced grid border intensity using low-alpha gray overlay lines
+
+### v0.2.3 - Bank and Spawn Layout
+
+- Added `bank.png` placement at the bottom-right tile
+- Updated player spawn to always start at the top-left tile
+- Added gray base tiles under buildings and a green base tile under the bank
+
+### v0.2.4 - Fixed Building Layout
+
+- Replaced random building spawns with fixed grid coordinates for consistent map layout
+
+### v0.3.0 - A* Pathfinding Demo
+
+- Added separate `run_astar.py` entry point for autonomous pathfinding mode
+- Implemented A* search in `src/astar_demo.py` to route from start to bank while avoiding obstacles
+- Added animated step-by-step movement and facing updates along the computed path
+
+### v0.3.1 - Denser A* Obstacles
+
+- Updated A* demo map to place 4 instances each of `building_1`, `building_2`, and `building_3`
+
+### v0.3.2 - Randomized A* Buildings
+
+- Updated A* demo to randomly place 4 instances of each building type on each run
+- Added layout validation so generated obstacles always leave a valid path to the bank
+
+### v0.3.3 - Randomized A* Bank
+
+- Updated A* demo to randomly place the bank on open interior tiles
+- `R` now regenerates both bank and obstacle layout while preserving path solvability
 
 ## Contributing
 
