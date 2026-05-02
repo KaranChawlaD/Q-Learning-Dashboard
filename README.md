@@ -5,10 +5,10 @@ This repository contains a lightweight Pygame prototype for a grid-based charact
 ## Current Features
 
 - Tile-based tarmac background using `assets/elems/tarmac.png`
-- Manual keyboard movement mode (`run.py`)
+- Manual keyboard movement mode (`run.py`) with smooth tile-to-tile animation
 - Direction-aware character sprite swapping (`forward`, `back`, `left`, `right`)
 - Manual mode uses fixed map layout: player starts top-left, bank is bottom-right, and buildings are fixed obstacles
-- Separate A* demo mode (`run_astar.py`) where buildings and bank are randomized each run
+- Separate A* demo mode (`run_astar.py`) where buildings and bank are randomized each run, with smooth path following
 - A* layout generation guarantees a valid path from start to bank
 
 ## Project Structure
@@ -49,10 +49,19 @@ python run_astar.py
 
 ## Controls
 
+### Manual mode (`run.py`)
+
 - `Arrow Up`: Move one tile up and face backward
 - `Arrow Down`: Move one tile down and face forward
 - `Arrow Left`: Move one tile left
 - `Arrow Right`: Move one tile right
+- `Esc`: Exit
+
+While a move is animating, further arrow input is ignored until the current step finishes.
+
+### A* demo (`run_astar.py`)
+
+- `R`: Regenerate random bank, buildings, and path
 - `Esc`: Exit
 
 ## Roadmap
@@ -117,6 +126,10 @@ python run_astar.py
 
 - Updated A* demo to randomly place the bank on open interior tiles
 - `R` now regenerates both bank and obstacle layout while preserving path solvability
+
+### v0.4.0 - Smooth Movement
+
+- Added eased interpolation between grid cells for the businessman in manual and A* modes
 
 ## Contributing
 

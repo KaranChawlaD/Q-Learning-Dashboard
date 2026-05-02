@@ -12,7 +12,7 @@ GRID_ROWS = 9
 WINDOW_WIDTH = GRID_COLS * TILE_SIZE
 WINDOW_HEIGHT = GRID_ROWS * TILE_SIZE
 FPS = 60
-STEP_INTERVAL_MS = 250
+MOVE_DURATION_MS = 220
 
 GRID_LINE_COLOR = (140, 140, 140, 45)
 BUILDING_BASE_COLOR = (110, 110, 110)
@@ -23,6 +23,11 @@ SPRITES_DIR = os.path.join(PROJECT_ROOT, "assets", "sprites")
 ELEMS_DIR = os.path.join(PROJECT_ROOT, "assets", "elems")
 
 GridCell = tuple[int, int]
+
+
+def smoothstep(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return t * t * (3.0 - 2.0 * t)
 
 
 def load_scaled_sprite(filename: str) -> pygame.Surface:
@@ -165,11 +170,14 @@ def main() -> None:
     bank_cell, buildings, obstacle_cells, path = generate_random_layout(building_sprites, start_cell)
     player_cell = start_cell
     facing = "down"
-    path_index = 0
-    last_step_time = pygame.time.get_ticks()
+    segment_index = 0
+    move_start_ms = pygame.time.get_ticks()
+    if path and len(path) > 1:
+        facing = direction_from_step(path[0], path[1])
 
     running = True
     while running:
+        now = pygame.time.get_ticks()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -182,16 +190,33 @@ def main() -> None:
                     )
                     player_cell = start_cell
                     facing = "down"
-                    path_index = 0
-                    last_step_time = pygame.time.get_ticks()
+                    segment_index = 0
+                    move_start_ms = pygame.time.get_ticks()
+                    if path and len(path) > 1:
+                        facing = direction_from_step(path[0], path[1])
 
-        now = pygame.time.get_ticks()
-        if path and path_index < len(path) - 1 and now - last_step_time >= STEP_INTERVAL_MS:
-            next_cell = path[path_index + 1]
-            facing = direction_from_step(player_cell, next_cell)
-            player_cell = next_cell
-            path_index += 1
-            last_step_time = now
+        if path and segment_index < len(path) - 1:
+            from_cell = path[segment_index]
+            to_cell = path[segment_index + 1]
+            elapsed = now - move_start_ms
+            t = elapsed / MOVE_DURATION_MS if MOVE_DURATION_MS else 1.0
+            if t >= 1.0:
+                segment_index += 1
+                player_cell = path[segment_index]
+                move_start_ms = now
+                if segment_index < len(path) - 1:
+                    facing = direction_from_step(path[segment_index], path[segment_index + 1])
+
+        if path and segment_index < len(path) - 1:
+            from_cell = path[segment_index]
+            to_cell = path[segment_index + 1]
+            elapsed = now - move_start_ms
+            st = smoothstep(elapsed / MOVE_DURATION_MS if MOVE_DURATION_MS else 1.0)
+            px = from_cell[0] * TILE_SIZE + (to_cell[0] - from_cell[0]) * TILE_SIZE * st
+            py = from_cell[1] * TILE_SIZE + (to_cell[1] - from_cell[1]) * TILE_SIZE * st
+        else:
+            px = float(player_cell[0] * TILE_SIZE)
+            py = float(player_cell[1] * TILE_SIZE)
 
         draw_tarmac_grid(screen, tarmac_tile)
         for _, (building_col, building_row) in buildings:
@@ -206,7 +231,7 @@ def main() -> None:
         for building_sprite, (building_col, building_row) in buildings:
             screen.blit(building_sprite, (building_col * TILE_SIZE, building_row * TILE_SIZE))
         screen.blit(bank_sprite, (bank_cell[0] * TILE_SIZE, bank_cell[1] * TILE_SIZE))
-        screen.blit(sprites[facing], (player_cell[0] * TILE_SIZE, player_cell[1] * TILE_SIZE))
+        screen.blit(sprites[facing], (int(px), int(py)))
 
         pygame.display.flip()
         clock.tick(FPS)
