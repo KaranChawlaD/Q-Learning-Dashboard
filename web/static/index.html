@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Q-Learning Trainer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap"
+  />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>Q-Learning Trainer</h1>
+        <p class="subtitle" id="subtitle">Tabular agent · 12 × 9 gridworld</p>
+      </div>
+      <div class="topbar-right">
+        <div class="connection" id="connection">
+          <span class="dot"></span><span class="label">Connecting…</span>
+        </div>
+        <div class="speed-text" id="speed-text">5 steps / frame</div>
+        <div class="status pill" id="status-pill">
+          <span class="dot"></span><span id="status-text">TRAINING</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="card grid-card">
+      <header class="card-head">
+        <div>
+          <h2>Policy Heatmap</h2>
+          <p>max Q(s, a) per tile · arrows show greedy action</p>
+        </div>
+      </header>
+      <div class="grid-stage">
+        <canvas id="grid-canvas"></canvas>
+      </div>
+      <div class="legend">
+        <div class="legend-bar"></div>
+        <div class="legend-labels">
+          <span>V min <strong id="legend-min">—</strong></span>
+          <span><strong id="legend-max">—</strong> V max</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card metrics-card">
+      <header class="card-head"><h2>Metrics</h2></header>
+      <div class="metrics-grid">
+        <div class="stat">
+          <span class="stat-label">Episode</span>
+          <span class="stat-value" id="metric-ep">0 / 5000</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Epsilon</span>
+          <span class="stat-value cyan" id="metric-eps">1.000</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Last episode</span>
+          <span class="stat-value" id="metric-last">— steps</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Avg (last 100)</span>
+          <span class="stat-value amber" id="metric-avg">—</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card controls-card">
+      <header class="card-head"><h2>Controls</h2></header>
+      <div class="controls-list">
+        <button class="ctl" data-cmd="toggle">
+          <kbd>Space</kbd>
+          <span id="toggle-label">Pause training</span>
+        </button>
+        <div class="ctl-row">
+          <span class="ctl-label">Training speed</span>
+          <div class="speed-buttons" id="speed-buttons"></div>
+        </div>
+        <button class="ctl" data-cmd="save">
+          <kbd>S</kbd><span>Save Q-table to assets/</span>
+        </button>
+        <button class="ctl" data-cmd="reset">
+          <kbd>R</kbd><span>Restart training</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="card chart-card">
+      <header class="card-head">
+        <div>
+          <h2>Steps per Episode</h2>
+          <p id="chart-subtitle">Lower is better</p>
+        </div>
+        <div class="legend-inline">
+          <span><span class="dot cyan"></span>Per episode</span>
+          <span><span class="dot amber"></span>50-ep moving avg</span>
+        </div>
+      </header>
+      <div class="chart-stage">
+        <canvas id="chart-canvas"></canvas>
+      </div>
+    </section>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
