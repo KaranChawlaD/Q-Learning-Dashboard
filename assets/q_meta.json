@@ -1,0 +1,129 @@
+{
+  "config": {
+    "episodes": 5000,
+    "max_steps": 200,
+    "alpha": 0.1,
+    "gamma": 0.95,
+    "epsilon_start": 1.0,
+    "epsilon_end": 0.05,
+    "epsilon_decay_episodes": 3000,
+    "reward_goal": 100.0,
+    "reward_step": -1.0,
+    "reward_blocked": -5.0,
+    "seed": 42,
+    "log_every": 250
+  },
+  "grid_cols": 12,
+  "grid_rows": 9,
+  "start": [
+    0,
+    0
+  ],
+  "bank": [
+    11,
+    8
+  ],
+  "obstacles": [
+    [
+      3,
+      2
+    ],
+    [
+      6,
+      4
+    ],
+    [
+      8,
+      6
+    ]
+  ],
+  "actions": [
+    "up",
+    "down",
+    "left",
+    "right"
+  ],
+  "greedy_path": [
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      2,
+      2
+    ],
+    [
+      2,
+      3
+    ],
+    [
+      3,
+      3
+    ],
+    [
+      4,
+      3
+    ],
+    [
+      4,
+      4
+    ],
+    [
+      4,
+      5
+    ],
+    [
+      5,
+      5
+    ],
+    [
+      5,
+      6
+    ],
+    [
+      6,
+      6
+    ],
+    [
+      7,
+      6
+    ],
+    [
+      7,
+      7
+    ],
+    [
+      7,
+      8
+    ],
+    [
+      8,
+      8
+    ],
+    [
+      9,
+      8
+    ],
+    [
+      10,
+      8
+    ],
+    [
+      11,
+      8
+    ]
+  ],
+  "greedy_path_length": 19
+}
