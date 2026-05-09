@@ -11,14 +11,17 @@ This repository contains a lightweight Pygame prototype for a grid-based charact
 - Separate A* demo mode (`run_astar.py`) where buildings and bank are randomized each run, with smooth path following
 - A* layout generation guarantees a valid path from start to bank
 - Tabular Q-learning trainer (`run_train.py`) that learns the shortest path from start to bank on the fixed manual-mode map and saves the trained Q-table for later use
+- Q-learning policy viewer (`run_qlearning.py`) that loads `assets/q_table.npy` and animates the greedy path on the same fixed map
 
 ## Project Structure
 
 - `run.py`: Entry point for manual-control prototype
 - `run_astar.py`: Entry point for A* pathfinding demo
 - `run_train.py`: Entry point for the Q-learning trainer
+- `run_qlearning.py`: Entry point for the Q-learning policy playback demo
 - `src/main.py`: Manual-control Pygame loop and movement logic
 - `src/astar_demo.py`: A* pathfinding demo and auto-movement logic
+- `src/qlearning_demo.py`: Loads trained Q-values and animates the greedy path in pygame
 - `src/train.py`: Tabular Q-learning training loop and artifact saving
 - `assets/elems/`: Environment assets (`tarmac`, `building_1..3`, `bank`)
 - `assets/sprites/`: Character facing-direction sprites
@@ -32,7 +35,7 @@ This repository contains a lightweight Pygame prototype for a grid-based charact
 ## Requirements
 
 - Python 3.9+
-- `pygame` (manual and A* demo modes)
+- `pygame` (manual mode, A* demo, and Q-learning policy demo)
 - `numpy` (Q-learning trainer)
 
 Install dependencies:
@@ -54,6 +57,9 @@ python run_astar.py
 
 # Train the Q-learning agent (headless, no pygame window)
 python run_train.py
+
+# Play back the greedy policy learned from assets/q_table.npy
+python run_qlearning.py
 ```
 
 ## Controls
@@ -71,6 +77,13 @@ While a move is animating, further arrow input is ignored until the current step
 ### A* demo (`run_astar.py`)
 
 - `R`: Regenerate random bank, buildings, and path
+- `Esc`: Exit
+
+### Q-learning policy demo (`run_qlearning.py`)
+
+Requires `assets/q_table.npy` (run `python run_train.py` first). Uses the same fixed map as manual mode and follows the greedy policy computed from the loaded Q-table.
+
+- `R`: Restart playback from the start cell
 - `Esc`: Exit
 
 ### Q-learning training (`run_train.py`)
@@ -92,7 +105,6 @@ After training, the trainer prints the greedy policy path from start to bank and
 
 ## Roadmap
 
-- Add a `run_qlearning.py` viewer that loads `assets/q_table.npy` and animates the greedy path in pygame
 - Generalize Q-learning to randomized layouts (function approximation / DQN)
 - Add episode logging and visual debugging tools (heatmaps of state values)
 
@@ -162,6 +174,11 @@ After training, the trainer prints the greedy policy path from start to bank and
 - Added `run_train.py` headless entry point for the trainer
 - Added artifact saving to `assets/q_table.npy` and `assets/q_meta.json`
 - Added greedy-path printout for quick post-training sanity checks
+
+### v0.5.1 - Q-Learning Policy Viewer
+
+- Added `src/qlearning_demo.py` to load `assets/q_table.npy` and animate the greedy path with the same visuals as manual mode
+- Added `run_qlearning.py` entry point; `R` restarts playback, `Esc` exits
 
 ## Contributing
 
