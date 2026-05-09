@@ -94,22 +94,26 @@ Requires `assets/q_table.npy` (run `python run_train.py` first). Uses the same f
 
 ### Q-learning training visualization (`run_train_viz.py`)
 
-Runs the same training algorithm as `run_train.py` but renders progress live:
+Runs the same training algorithm as `run_train.py` but renders progress live in a card-based dashboard.
 
-- Each free tile is colored by its state value `V(s) = max_a Q(s, a)` using a viridis gradient (low = dark purple, high = yellow). The bank tile is shown in green and obstacle tiles in dark gray.
-- A small white arrow on each visited tile points in the direction of the current best action (the greedy policy at a glance).
-- The agent sprite shows where the latest mini-batch of training steps ended up.
-- The bottom panel plots steps-per-episode for every completed episode (cyan) plus a 50-episode moving average (orange).
+Layout:
+
+- **Header**: title, current speed, and a status pill (`TRAINING` cyan / `PAUSED` amber / `DONE` emerald). When training finishes, the subtitle reports the final greedy path length.
+- **Policy heatmap card**: each free tile is colored by its state value `V(s) = max_a Q(s, a)` using a plasma gradient (deep purple = low, magenta to yellow = high). Obstacle tiles render in dark slate, the bank tile in emerald, the businessman sprite is wrapped in a cyan focus ring on the cell where training is currently stepping. A small white arrow on every visited tile points in the direction of the greedy action. A gradient bar below the grid shows the current `V min` / `V max` mapping.
+- **Metrics card**: four stat cells showing `EPISODE`, `EPSILON` (cyan), `LAST EPISODE` length, and `AVG (LAST 100)` (amber).
+- **Controls card**: keyboard bindings rendered as kbd-style pills.
+- **Steps-per-episode graph**: cyan per-episode line, amber 50-episode moving average, dashed horizontal grid lines, rotated `STEPS` y-axis label, formatted x-axis ticks (e.g. `1k`, `2k`), and an inline legend. The subtitle turns emerald and reports `Converged near optimum (X.X steps)` once the 100-episode average drops below 25.
 
 Controls:
 
 - `Space`: Pause / resume training
-- `Up` or `Right` (or `+`): Increase training speed (steps per rendered frame)
-- `Down` or `Left` (or `-`): Decrease training speed
+- `1` – `6`: Jump to a specific speed level
+- `Up`/`Right` (or `+`): Increase training speed (steps per rendered frame)
+- `Down`/`Left` (or `-`): Decrease training speed
 - `S`: Save the current Q-table to `assets/q_table.npy` without quitting
 - `Esc`: Quit (artifacts are saved automatically when training finishes)
 
-Speed levels: 1, 5, 25, 100, 500, 2000 steps per frame. Start at 5 to watch episode-by-episode behavior, then crank up to finish the full 5000-episode run quickly.
+Speed levels: 1, 5, 25, 100, 500, 2000 steps per frame. Start at 5 (the default) to watch episode-by-episode behavior, then press `4`/`5`/`6` to finish the full 5000-episode run quickly.
 
 ### Q-learning training (`run_train.py`)
 
@@ -211,6 +215,15 @@ After training, the trainer prints the greedy policy path from start to bank and
 - Added a live steps-per-episode graph with a 50-episode moving average
 - Added speed control (1 to 2000 steps/frame), pause, and on-demand save
 - Added `run_train_viz.py` entry point; reuses `src/train.py` so behavior matches headless training under the same seed
+
+### v0.5.3 - Dashboard UI Refresh
+
+- Rebuilt the training visualizer as a card-based dashboard at 1280x920
+- Switched the heatmap to a plasma palette with rounded tiles and inter-tile gaps; added a gradient legend showing the current `V min` / `V max` range
+- Added a header with title, status pill (TRAINING / PAUSED / DONE), and live speed indicator
+- Replaced the inline status line with four large stat cells (Episode, Epsilon, Last Episode, Avg-100) and a separate Controls card with kbd-style key pills
+- Polished the chart: rotated `STEPS` y-axis label, `EPISODE` x-axis label, formatted thousands ticks, inline legend, dashed grid lines, dim "now" indicator, empty state, and an emerald `Converged` subtitle once the 100-episode average drops below 25
+- Added cyan focus ring around the agent's current cell and number-key shortcuts (`1`–`6`) for direct speed selection
 
 ## Contributing
 
