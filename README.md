@@ -48,6 +48,7 @@ Q-Learning/
 ├── requirements.txt       # runtime Python dependencies
 ├── requirements-dev.txt   # adds dev tools (Ruff); includes requirements.txt
 ├── pyproject.toml         # Ruff linter/formatter configuration
+├── CONTRIBUTING.md        # contributor guide
 └── README.md
 ```
 
@@ -180,7 +181,7 @@ Settings live in `pyproject.toml` (`[tool.ruff]`).
 
 ## Contributing
 
-Contributions are welcome. Please open an issue or pull request with a clear description of proposed changes. For Python changes, run `ruff format .` and `ruff check .` (see **Development**) before submitting.
+Contributions are welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide on local setup, bug reports, the pull request workflow, coding standards, and manual smoke tests. The short version: open an issue first for anything non-trivial, run `ruff format .` and `ruff check .` before submitting, and update the README's [Version History](#version-history) for user-visible changes.
 
 ## License
 
