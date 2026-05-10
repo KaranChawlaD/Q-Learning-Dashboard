@@ -1,0 +1,25 @@
+# Ruff: https://docs.astral.sh/ruff/
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["qlearning", "web", "run.py"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501", # line too long (formatter handles code; docstrings may exceed)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["qlearning", "web"]

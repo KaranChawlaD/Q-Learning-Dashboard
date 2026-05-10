@@ -45,7 +45,9 @@ Q-Learning/
 │       ├── style.css
 │       └── app.js
 ├── run.py                 # entry point (dispatches to web|train|manual)
-├── requirements.txt
+├── requirements.txt       # runtime Python dependencies
+├── requirements-dev.txt   # adds dev tools (Ruff); includes requirements.txt
+├── pyproject.toml         # Ruff linter/formatter configuration
 └── README.md
 ```
 
@@ -113,6 +115,23 @@ The web dashboard writes these same files when training finishes (or when you hi
 
 `python run.py manual` opens a pygame window with the same map. Use the arrow keys to move the businessman and `Esc` to quit. Useful for sanity-checking the env interactively.
 
+## Development
+
+Python code is linted and formatted with [Ruff](https://docs.astral.sh/ruff/). Install dev dependencies (Ruff plus everything in `requirements.txt`):
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+Run Ruff from the project root:
+
+```bash
+ruff format .    # apply formatting
+ruff check .     # lint; add --fix to auto-fix what Ruff can
+```
+
+Settings live in `pyproject.toml` (`[tool.ruff]`).
+
 ## Roadmap
 
 - Generalize Q-learning to randomized layouts (function approximation / DQN)
@@ -161,7 +180,7 @@ The web dashboard writes these same files when training finishes (or when you hi
 
 ## Contributing
 
-Contributions are welcome. Please open an issue or pull request with a clear description of proposed changes.
+Contributions are welcome. Please open an issue or pull request with a clear description of proposed changes. For Python changes, run `ruff format .` and `ruff check .` (see **Development**) before submitting.
 
 ## License
 

@@ -12,7 +12,7 @@ import json
 import os
 import random
 import webbrowser
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 import numpy as np
@@ -38,7 +38,6 @@ from qlearning.train import (
     greedy_path,
     save_artifacts,
 )
-
 
 SPEED_LEVELS = (1, 5, 25, 100, 500, 2000)
 TICK_INTERVAL_S = 0.05
@@ -84,9 +83,7 @@ class Trainer:
             eps_v = epsilon_for(self.ep, cfg)
             action = choose_action(self.q, self.cell, eps_v, self.rng)
             next_cell, reward, done = env_step(self.cell, action, cfg)
-            best_next = (
-                0.0 if done else float(self.q[next_cell[0], next_cell[1]].max())
-            )
+            best_next = 0.0 if done else float(self.q[next_cell[0], next_cell[1]].max())
             td_target = reward + cfg.gamma * best_next
             self.q[self.cell[0], self.cell[1], action] += cfg.alpha * (
                 td_target - self.q[self.cell[0], self.cell[1], action]
@@ -197,10 +194,8 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
 
 app = FastAPI(lifespan=lifespan, title="Q-Learning Trainer")
@@ -241,12 +236,8 @@ def _handle_command(msg: dict) -> None:
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
     try:
-        await websocket.send_text(
-            json.dumps({"type": "init", "config": trainer.static_config()})
-        )
-        await websocket.send_text(
-            json.dumps({"type": "state", "data": trainer.snapshot()})
-        )
+        await websocket.send_text(json.dumps({"type": "init", "config": trainer.static_config()}))
+        await websocket.send_text(json.dumps({"type": "state", "data": trainer.snapshot()}))
     except Exception:
         await websocket.close()
         return
@@ -274,10 +265,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         pass
     finally:
         sender_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await sender_task
-        except asyncio.CancelledError:
-            pass
 
 
 def main() -> None:
@@ -285,12 +274,8 @@ def main() -> None:
         prog="run.py web",
         description="Launch the Q-learning training dashboard",
     )
-    parser.add_argument(
-        "--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)"
-    )
-    parser.add_argument(
-        "--port", type=int, default=8000, help="Bind port (default: 8000)"
-    )
+    parser.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
+    parser.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
     parser.add_argument(
         "--no-browser",
         action="store_true",

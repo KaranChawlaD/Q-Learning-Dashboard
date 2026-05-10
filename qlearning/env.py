@@ -8,7 +8,6 @@ render.
 
 from __future__ import annotations
 
-
 GRID_COLS = 12
 GRID_ROWS = 9
 

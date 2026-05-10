@@ -29,7 +29,6 @@ from qlearning.env import (
     START_CELL,
 )
 
-
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
 
@@ -75,9 +74,7 @@ def epsilon_for(episode: int, cfg: TrainConfig) -> float:
     return cfg.epsilon_start + frac * (cfg.epsilon_end - cfg.epsilon_start)
 
 
-def choose_action(
-    q: np.ndarray, cell: tuple[int, int], eps: float, rng: random.Random
-) -> int:
+def choose_action(q: np.ndarray, cell: tuple[int, int], eps: float, rng: random.Random) -> int:
     if rng.random() < eps:
         return rng.randrange(NUM_ACTIONS)
     qvals = q[cell[0], cell[1]]
@@ -149,9 +146,7 @@ def greedy_path(q: np.ndarray, max_steps: int = 200) -> list[tuple[int, int]]:
     return path
 
 
-def save_artifacts(
-    q: np.ndarray, cfg: TrainConfig, path: list[tuple[int, int]]
-) -> None:
+def save_artifacts(q: np.ndarray, cfg: TrainConfig, path: list[tuple[int, int]]) -> None:
     os.makedirs(ASSETS_DIR, exist_ok=True)
     q_path = os.path.join(ASSETS_DIR, "q_table.npy")
     meta_path = os.path.join(ASSETS_DIR, "q_meta.json")
@@ -186,10 +181,7 @@ def main() -> None:
     manhattan = abs(BANK_CELL[0] - START_CELL[0]) + abs(BANK_CELL[1] - START_CELL[1])
     print("\nGreedy policy path from start to bank:")
     print(" -> ".join(str(c) for c in path))
-    print(
-        f"path length: {len(path) - 1} steps "
-        f"(unobstructed Manhattan optimum: {manhattan})"
-    )
+    print(f"path length: {len(path) - 1} steps (unobstructed Manhattan optimum: {manhattan})")
     print(f"final 100-episode avg length: {float(np.mean(lengths[-100:])):.2f}")
 
     save_artifacts(q, cfg, path)

@@ -20,7 +20,6 @@ from qlearning.env import (
     START_CELL,
 )
 
-
 TILE_SIZE = 64
 WINDOW_WIDTH = GRID_COLS * TILE_SIZE
 WINDOW_HEIGHT = GRID_ROWS * TILE_SIZE
