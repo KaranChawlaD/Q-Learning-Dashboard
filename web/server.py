@@ -6,19 +6,22 @@ this dashboard match `python run_train.py` exactly under the same seed.
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import os
 import random
+import webbrowser
 from contextlib import asynccontextmanager
 from typing import Any
 
 import numpy as np
+import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from src.train import (
+from qlearning.env import (
     ACTION_NAMES,
     BANK_CELL,
     GRID_COLS,
@@ -26,6 +29,8 @@ from src.train import (
     NUM_ACTIONS,
     OBSTACLES,
     START_CELL,
+)
+from qlearning.train import (
     TrainConfig,
     choose_action,
     env_step,
@@ -273,3 +278,43 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             await sender_task
         except asyncio.CancelledError:
             pass
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        prog="run.py web",
+        description="Launch the Q-learning training dashboard",
+    )
+    parser.add_argument(
+        "--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=8000, help="Bind port (default: 8000)"
+    )
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Do not auto-open a browser tab when the server starts",
+    )
+    parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable auto-reload (development only)",
+    )
+    args = parser.parse_args()
+
+    if not args.no_browser:
+        host = "localhost" if args.host in ("0.0.0.0", "127.0.0.1") else args.host
+        webbrowser.open(f"http://{host}:{args.port}", new=2)
+
+    uvicorn.run(
+        "web.server:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        log_level="info",
+    )
+
+
+if __name__ == "__main__":
+    main()

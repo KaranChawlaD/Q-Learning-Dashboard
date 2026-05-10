@@ -1,13 +1,12 @@
 """Tabular Q-learning trainer for the businessman -> bank gridworld.
 
-Trains against the fixed map defined in src/main.py:
-  - 12 x 9 grid
-  - start (0, 0), bank (11, 8)
-  - obstacles at (3, 2), (6, 4), (8, 6)
+Trains over the fixed map defined in :mod:`qlearning.env` and writes:
 
-Outputs:
-  - assets/q_table.npy        Q-values, shape (GRID_COLS, GRID_ROWS, 4)
-  - assets/q_meta.json        Hyperparameters + env config used for training
+  - ``assets/q_table.npy``   Q-values, shape ``(GRID_COLS, GRID_ROWS, 4)``
+  - ``assets/q_meta.json``   Hyperparameters + env config used for training
+
+The same algorithm is executed by the live web dashboard (see ``web/server.py``)
+so artifacts produced from either entry point match under the same seed.
 """
 
 from __future__ import annotations
@@ -19,16 +18,17 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 
+from qlearning.env import (
+    ACTION_NAMES,
+    ACTIONS,
+    BANK_CELL,
+    GRID_COLS,
+    GRID_ROWS,
+    NUM_ACTIONS,
+    OBSTACLES,
+    START_CELL,
+)
 
-GRID_COLS = 12
-GRID_ROWS = 9
-START_CELL = (0, 0)
-BANK_CELL = (GRID_COLS - 1, GRID_ROWS - 1)
-OBSTACLES: frozenset[tuple[int, int]] = frozenset({(3, 2), (6, 4), (8, 6)})
-
-ACTIONS = ((0, -1), (0, 1), (-1, 0), (1, 0))  # up, down, left, right
-ACTION_NAMES = ("up", "down", "left", "right")
-NUM_ACTIONS = len(ACTIONS)
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
@@ -53,10 +53,11 @@ class TrainConfig:
 def env_step(
     cell: tuple[int, int], action: int, cfg: TrainConfig
 ) -> tuple[tuple[int, int], float, bool]:
-    """Apply an action; return (next_cell, reward, done).
+    """Apply an action; return ``(next_cell, reward, done)``.
 
-    Mirrors src/main.py movement: out-of-bounds and obstacle moves are blocked
-    (agent stays put and incurs `reward_blocked`).
+    Out-of-bounds and obstacle moves are blocked (agent stays put and incurs
+    ``cfg.reward_blocked``). Reaching the bank yields ``cfg.reward_goal`` and
+    ends the episode. Otherwise the agent moves and pays ``cfg.reward_step``.
     """
     dc, dr = ACTIONS[action]
     nc, nr = cell[0] + dc, cell[1] + dr
@@ -148,7 +149,9 @@ def greedy_path(q: np.ndarray, max_steps: int = 200) -> list[tuple[int, int]]:
     return path
 
 
-def save_artifacts(q: np.ndarray, cfg: TrainConfig, path: list[tuple[int, int]]) -> None:
+def save_artifacts(
+    q: np.ndarray, cfg: TrainConfig, path: list[tuple[int, int]]
+) -> None:
     os.makedirs(ASSETS_DIR, exist_ok=True)
     q_path = os.path.join(ASSETS_DIR, "q_table.npy")
     meta_path = os.path.join(ASSETS_DIR, "q_meta.json")
