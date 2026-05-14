@@ -50,7 +50,7 @@ source .venv/bin/activate
 
 ### 4. Install development dependencies
 
-`requirements-dev.txt` includes everything in `requirements.txt` plus Ruff:
+`requirements-dev.txt` includes everything in `requirements.txt` plus Ruff and pytest:
 
 ```bash
 pip install -r requirements-dev.txt
@@ -64,6 +64,7 @@ Each of these should run cleanly:
 python run.py --help                   # dispatcher help
 python run.py train                    # ~5 seconds, writes assets/q_table.npy
 python run.py web --no-browser --port 8765   # Ctrl+C to stop
+pytest -q                              # unit tests pass
 ruff check .                           # lint passes
 ruff format --check .                  # formatting passes
 ```
@@ -141,7 +142,7 @@ ruff format .
 ruff check .
 ```
 
-Then run the [Manual Smoke Tests](#manual-smoke-tests) appropriate for what you changed.
+Then run the [Manual Smoke Tests](#manual-smoke-tests) appropriate for what you changed. Include `pytest -q` in the PR **Testing** section when you touch Python.
 
 ### 5. Commit
 
@@ -181,8 +182,9 @@ Then open a pull request against `main`. The PR description should include:
 
 ### Algorithm and environment changes
 
-- **`qlearning/env.py` is shared by all three subcommands** (`train`, `web`, `manual`). Changing constants there propagates everywhere — that's intentional, but means any change should be checked in all three.
-- **The web dashboard reuses `qlearning/train.py`'s `env_step`, `choose_action`, `epsilon_for`, `greedy_path`, and `save_artifacts` directly.** If you change their signatures, update `web/server.py:Trainer` in the same PR.
+- **`qlearning/env.py` defines grid dimensions, actions, and the default layout.** CLI `train` and `manual` use `DEFAULT_LAYOUT`; the web dashboard sends a custom `GridLayout` via the `start_training` WebSocket command. Changing validation rules or `GridLayout` affects the dashboard first — keep `parse_layout` / `validate_layout` in sync with the frontend editor.
+- **The web dashboard reuses `qlearning/train.py`'s `env_step`, `choose_action`, `epsilon_for`, `greedy_path`, and `save_artifacts` directly** (with a per-session `GridLayout`). If you change their signatures, update `web/server.py:Trainer` and `qlearning/evaluate.py` in the same PR.
+- **Post-training checks** live in `qlearning/evaluate.py` and are surfaced in the dashboard's model-tests panel. Update tests in `tests/test_evaluate.py` when you add or change cases.
 - **Q-table artifact format changes are breaking** for anyone with a saved `assets/q_table.npy`. Bump the version history accordingly and ideally add a load-time compatibility check.
 - **Determinism**: training uses `random.Random(cfg.seed)`. Don't introduce non-determinism (no bare `random.*` calls, no `np.random` without a seeded generator) — it makes regressions much harder to bisect.
 
@@ -210,38 +212,45 @@ One commit per logical change is preferred. Squash fixup commits before opening 
 
 ## Manual Smoke Tests
 
-There is no automated test suite yet. Until one exists, please run the relevant subset of these checks before opening a PR.
+Run the relevant subset of these checks before opening a PR. Automated coverage lives in `tests/` (`pytest -q`).
 
 **For any Python change:**
 
 ```bash
 ruff format .
 ruff check .
-python run.py train       # completes, writes assets/q_table.npy
+pytest -q
+python run.py train       # completes, writes assets/q_table.npy (default layout)
 ```
 
-**For dashboard backend changes (`web/server.py`):**
+**For dashboard backend changes (`web/server.py`, `qlearning/evaluate.py`):**
 
 ```bash
 python run.py web --no-browser --port 8765
-# In another shell, hit http://127.0.0.1:8765 in a browser
-# Verify: status pill, heatmap colors, agent moves, chart updates,
-# pause/resume button, speed selector (1-6), save button, restart button
+# In a browser, hit http://127.0.0.1:8765
+# Setup: drag agent + bank onto grid, add buildings, Start Training
+# Training: status pill, heatmap, agent moves, chart updates,
+# pause/resume, speed selector (1-6), save, model tests after completion
+# Reset (R): returns to environment editor
 # Watch the browser DevTools console for errors
 ```
 
 **For dashboard frontend changes (`web/static/*`):**
 
 - Hard-refresh the page (Ctrl+Shift+R) to bypass cached assets
+- **Setup mode:** palette hides agent/bank after placement; buildings can be placed multiple times; validation message and Start Training enable/disable correctly
+- **Training mode:** metrics, controls, chart, and heatmap appear after Start Training
 - Test at multiple viewport widths (laptop ~1366×768, ultrawide, mobile ~400px wide)
-- Verify keyboard shortcuts still work (`Space`, `1`–`6`, `S`, `R`, `←`/`→`)
+- Verify keyboard shortcuts in training mode (`Space`, `1`–`6`, `S`, `R`, `←`/`→`)
+- Expand model-test rows after training completes; confirm pass/fail details render
 - Watch the DevTools console — any uncaught error fails the smoke test
 
 **For algorithm changes (`qlearning/train.py`, `qlearning/env.py`):**
 
-- Run `python run.py train` and verify the greedy path is still the optimal **19 steps** (with default `seed=42`)
-- Verify the 100-episode average length converges to roughly **20** steps
-- If you change `TrainConfig` defaults, justify it in the PR — the existing values are tuned for the current map.
+- Run `python run.py train` on the **default layout** and verify the greedy path is still **19 steps** (`seed=42`)
+- Verify the 100-episode average length converges to roughly **20** steps on the default map
+- If you change `TrainConfig` defaults, justify it in the PR — the existing values are tuned for the default map
+- Run `pytest -q`; add or update tests when behavior changes
 
 **For manual mode changes (`qlearning/manual.py`):**
 
