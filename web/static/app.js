@@ -42,6 +42,10 @@ const els = {
   toggleLabel: document.getElementById("toggle-label"),
   speedButtons: document.getElementById("speed-buttons"),
   chartSubtitle: document.getElementById("chart-subtitle"),
+  testsCard: document.getElementById("tests-card"),
+  testsSubtitle: document.getElementById("tests-subtitle"),
+  testsSummary: document.getElementById("tests-summary"),
+  testsList: document.getElementById("tests-list"),
   gridCanvas: document.getElementById("grid-canvas"),
   chartCanvas: document.getElementById("chart-canvas"),
 };
@@ -54,6 +58,7 @@ let socket = null;
 let config = null;
 let lastState = null;
 let pendingFrame = false;
+let renderedTestsKey = null;
 
 function lerp(a, b, t) {
   return [
@@ -320,6 +325,97 @@ function setStatus(text, klass) {
   els.status.classList.add(klass);
 }
 
+function formatTestDetails(details) {
+  if (!details) return "";
+  if (details.path) {
+    return details.path.map((c) => `(${c[0]}, ${c[1]})`).join(" -> ");
+  }
+  return JSON.stringify(details, null, 2);
+}
+
+function renderModelTests(modelTests) {
+  if (!modelTests) {
+    els.testsCard.classList.add("hidden");
+    els.testsCard.setAttribute("aria-hidden", "true");
+    renderedTestsKey = null;
+    return;
+  }
+
+  const key = JSON.stringify(modelTests.tests.map((t) => [t.id, t.passed, t.actual]));
+  if (key === renderedTestsKey) {
+    els.testsCard.classList.remove("hidden");
+    els.testsCard.setAttribute("aria-hidden", "false");
+    return;
+  }
+  renderedTestsKey = key;
+
+  els.testsCard.classList.remove("hidden");
+  els.testsCard.setAttribute("aria-hidden", "false");
+
+  const { passed, total, allPassed } = modelTests;
+  els.testsSummary.textContent = `${passed}/${total} passed`;
+  els.testsSummary.classList.remove("is-pass", "is-fail");
+  els.testsSummary.classList.add(allPassed ? "is-pass" : "is-fail");
+  els.testsSubtitle.textContent = allPassed
+    ? "All checks passed — greedy policy is ready"
+    : "Some checks failed — expand a case to inspect expected vs actual";
+
+  els.testsList.innerHTML = "";
+  modelTests.tests.forEach((test, index) => {
+    const item = document.createElement("article");
+    item.className = `test-case ${test.passed ? "is-pass" : "is-fail"}`;
+    item.setAttribute("role", "listitem");
+
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "test-case-head";
+    head.setAttribute("aria-expanded", "false");
+    head.innerHTML = `
+      <svg class="test-case-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="test-case-status ${test.passed ? "is-pass" : "is-fail"}" aria-hidden="true">
+        ${test.passed ? "✓" : "✕"}
+      </span>
+      <span class="test-case-title">${test.name}</span>
+      <span class="test-case-index">Case ${index + 1}</span>
+    `;
+
+    const body = document.createElement("div");
+    body.className = "test-case-body";
+    body.innerHTML = `
+      <p class="test-case-desc">${test.description}</p>
+      <div class="test-case-io">
+        <div class="test-io-row">
+          <span class="test-io-label">Expected</span>
+          <p class="test-io-value">${test.expected}</p>
+        </div>
+        <div class="test-io-row">
+          <span class="test-io-label">Actual</span>
+          <p class="test-io-value ${test.passed ? "is-pass" : "is-fail"}">${test.actual}</p>
+        </div>
+        ${
+          test.details
+            ? `<div class="test-io-row">
+          <span class="test-io-label">Details</span>
+          <p class="test-io-value">${formatTestDetails(test.details)}</p>
+        </div>`
+            : ""
+        }
+      </div>
+    `;
+
+    head.addEventListener("click", () => {
+      const open = item.classList.toggle("is-open");
+      head.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+
+    item.appendChild(head);
+    item.appendChild(body);
+    els.testsList.appendChild(item);
+  });
+}
+
 function updateUi(state) {
   setupSpeedButtons(state.speedLevels);
   els.speedText.textContent = `${state.speed} steps / frame`;
@@ -334,12 +430,18 @@ function updateUi(state) {
     setStatus("DONE", "is-done");
     els.subtitle.textContent = `Trained ${state.totalEps} episodes · agent at ${state.agent.col}, ${state.agent.row}`;
     els.toggleLabel.textContent = "Restart to train again";
-  } else if (state.paused) {
-    setStatus("PAUSED", "is-paused");
-    els.toggleLabel.textContent = "Resume training";
+    renderModelTests(state.modelTests);
   } else {
-    setStatus("TRAINING", "is-training");
-    els.toggleLabel.textContent = "Pause training";
+    els.testsCard.classList.add("hidden");
+    els.testsCard.setAttribute("aria-hidden", "true");
+    renderedTestsKey = null;
+    if (state.paused) {
+      setStatus("PAUSED", "is-paused");
+      els.toggleLabel.textContent = "Resume training";
+    } else {
+      setStatus("TRAINING", "is-training");
+      els.toggleLabel.textContent = "Pause training";
+    }
   }
 
   if (state.lengths.length >= 100 && state.avg100 < 25) {

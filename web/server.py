@@ -30,6 +30,7 @@ from qlearning.env import (
     OBSTACLES,
     START_CELL,
 )
+from qlearning.evaluate import run_model_tests
 from qlearning.train import (
     TrainConfig,
     choose_action,
@@ -136,6 +137,12 @@ class Trainer:
         avg100 = float(np.mean(self.lengths[-100:])) if self.lengths else 0.0
         last_len = self.lengths[-1] if self.lengths else 0
 
+        model_tests = None
+        if self.finished:
+            model_tests = run_model_tests(
+                self.q, self.cfg, self.lengths, max_steps=self.cfg.max_steps
+            )
+
         return {
             "ep": self.ep,
             "totalEps": self.cfg.episodes,
@@ -157,6 +164,7 @@ class Trainer:
                 "facing": self.facing,
             },
             "lengths": list(self.lengths),
+            "modelTests": model_tests,
         }
 
     def static_config(self) -> dict[str, Any]:
