@@ -1,6 +1,6 @@
 """Tabular Q-learning trainer for the businessman -> bank gridworld.
 
-Trains over the fixed map defined in :mod:`qlearning.env` and writes:
+Trains over a grid layout (default from :mod:`qlearning.env`) and writes:
 
   - ``assets/q_table.npy``   Q-values, shape ``(GRID_COLS, GRID_ROWS, 4)``
   - ``assets/q_meta.json``   Hyperparameters + env config used for training
@@ -21,12 +21,11 @@ import numpy as np
 from qlearning.env import (
     ACTION_NAMES,
     ACTIONS,
-    BANK_CELL,
+    DEFAULT_LAYOUT,
     GRID_COLS,
     GRID_ROWS,
     NUM_ACTIONS,
-    OBSTACLES,
-    START_CELL,
+    GridLayout,
 )
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -50,19 +49,20 @@ class TrainConfig:
 
 
 def env_step(
-    cell: tuple[int, int], action: int, cfg: TrainConfig
+    cell: tuple[int, int],
+    action: int,
+    cfg: TrainConfig,
+    layout: GridLayout = DEFAULT_LAYOUT,
 ) -> tuple[tuple[int, int], float, bool]:
-    """Apply an action; return ``(next_cell, reward, done)``.
-
-    Out-of-bounds and obstacle moves are blocked (agent stays put and incurs
-    ``cfg.reward_blocked``). Reaching the bank yields ``cfg.reward_goal`` and
-    ends the episode. Otherwise the agent moves and pays ``cfg.reward_step``.
-    """
+    """Apply an action; return ``(next_cell, reward, done)``."""
     dc, dr = ACTIONS[action]
     nc, nr = cell[0] + dc, cell[1] + dr
-    if not (0 <= nc < GRID_COLS and 0 <= nr < GRID_ROWS) or (nc, nr) in OBSTACLES:
+    if (
+        not (0 <= nc < GRID_COLS and 0 <= nr < GRID_ROWS)
+        or (nc, nr) in layout.obstacles
+    ):
         return cell, cfg.reward_blocked, False
-    if (nc, nr) == BANK_CELL:
+    if (nc, nr) == layout.bank:
         return (nc, nr), cfg.reward_goal, True
     return (nc, nr), cfg.reward_step, False
 
@@ -82,7 +82,10 @@ def choose_action(q: np.ndarray, cell: tuple[int, int], eps: float, rng: random.
     return int(rng.choice(best.tolist()))
 
 
-def train(cfg: TrainConfig) -> tuple[np.ndarray, list[float], list[int]]:
+def train(
+    cfg: TrainConfig,
+    layout: GridLayout = DEFAULT_LAYOUT,
+) -> tuple[np.ndarray, list[float], list[int]]:
     rng = random.Random(cfg.seed)
     q = np.zeros((GRID_COLS, GRID_ROWS, NUM_ACTIONS), dtype=np.float64)
 
@@ -90,7 +93,7 @@ def train(cfg: TrainConfig) -> tuple[np.ndarray, list[float], list[int]]:
     lengths: list[int] = []
 
     for ep in range(cfg.episodes):
-        cell = START_CELL
+        cell = layout.start
         eps = epsilon_for(ep, cfg)
         total_reward = 0.0
         steps = 0
@@ -98,7 +101,7 @@ def train(cfg: TrainConfig) -> tuple[np.ndarray, list[float], list[int]]:
 
         while not done and steps < cfg.max_steps:
             action = choose_action(q, cell, eps, rng)
-            next_cell, reward, done = env_step(cell, action, cfg)
+            next_cell, reward, done = env_step(cell, action, cfg, layout)
 
             best_next = 0.0 if done else float(q[next_cell[0], next_cell[1]].max())
             td_target = reward + cfg.gamma * best_next
@@ -124,18 +127,25 @@ def train(cfg: TrainConfig) -> tuple[np.ndarray, list[float], list[int]]:
     return q, returns, lengths
 
 
-def greedy_path(q: np.ndarray, max_steps: int = 200) -> list[tuple[int, int]]:
+def greedy_path(
+    q: np.ndarray,
+    layout: GridLayout = DEFAULT_LAYOUT,
+    max_steps: int = 200,
+) -> list[tuple[int, int]]:
     """Walk the greedy policy from start to bank for inspection."""
-    cell = START_CELL
+    cell = layout.start
     path = [cell]
     visited = {cell}
     for _ in range(max_steps):
-        if cell == BANK_CELL:
+        if cell == layout.bank:
             break
         action = int(np.argmax(q[cell[0], cell[1]]))
         dc, dr = ACTIONS[action]
         nc, nr = cell[0] + dc, cell[1] + dr
-        if not (0 <= nc < GRID_COLS and 0 <= nr < GRID_ROWS) or (nc, nr) in OBSTACLES:
+        if (
+            not (0 <= nc < GRID_COLS and 0 <= nr < GRID_ROWS)
+            or (nc, nr) in layout.obstacles
+        ):
             break
         cell = (nc, nr)
         if cell in visited:
@@ -146,7 +156,12 @@ def greedy_path(q: np.ndarray, max_steps: int = 200) -> list[tuple[int, int]]:
     return path
 
 
-def save_artifacts(q: np.ndarray, cfg: TrainConfig, path: list[tuple[int, int]]) -> None:
+def save_artifacts(
+    q: np.ndarray,
+    cfg: TrainConfig,
+    path: list[tuple[int, int]],
+    layout: GridLayout = DEFAULT_LAYOUT,
+) -> None:
     os.makedirs(ASSETS_DIR, exist_ok=True)
     q_path = os.path.join(ASSETS_DIR, "q_table.npy")
     meta_path = os.path.join(ASSETS_DIR, "q_meta.json")
@@ -155,9 +170,9 @@ def save_artifacts(q: np.ndarray, cfg: TrainConfig, path: list[tuple[int, int]])
         "config": asdict(cfg),
         "grid_cols": GRID_COLS,
         "grid_rows": GRID_ROWS,
-        "start": list(START_CELL),
-        "bank": list(BANK_CELL),
-        "obstacles": [list(c) for c in sorted(OBSTACLES)],
+        "start": list(layout.start),
+        "bank": list(layout.bank),
+        "obstacles": [list(c) for c in sorted(layout.obstacles)],
         "actions": list(ACTION_NAMES),
         "greedy_path": [list(c) for c in path],
         "greedy_path_length": len(path) - 1,
@@ -170,21 +185,22 @@ def save_artifacts(q: np.ndarray, cfg: TrainConfig, path: list[tuple[int, int]])
 
 def main() -> None:
     cfg = TrainConfig()
+    layout = DEFAULT_LAYOUT
     print("Training Q-learning agent on fixed gridworld...")
-    print(f"  grid: {GRID_COLS}x{GRID_ROWS}, start={START_CELL}, bank={BANK_CELL}")
-    print(f"  obstacles: {sorted(OBSTACLES)}")
+    print(f"  grid: {GRID_COLS}x{GRID_ROWS}, start={layout.start}, bank={layout.bank}")
+    print(f"  obstacles: {sorted(layout.obstacles)}")
     print(f"  episodes={cfg.episodes}, alpha={cfg.alpha}, gamma={cfg.gamma}\n")
 
-    q, _, lengths = train(cfg)
-    path = greedy_path(q)
+    q, _, lengths = train(cfg, layout)
+    path = greedy_path(q, layout)
 
-    manhattan = abs(BANK_CELL[0] - START_CELL[0]) + abs(BANK_CELL[1] - START_CELL[1])
+    manhattan = layout.manhattan_optimum()
     print("\nGreedy policy path from start to bank:")
     print(" -> ".join(str(c) for c in path))
     print(f"path length: {len(path) - 1} steps (unobstructed Manhattan optimum: {manhattan})")
     print(f"final 100-episode avg length: {float(np.mean(lengths[-100:])):.2f}")
 
-    save_artifacts(q, cfg, path)
+    save_artifacts(q, cfg, path, layout)
 
 
 if __name__ == "__main__":

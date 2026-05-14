@@ -11,7 +11,7 @@ from typing import Any
 
 import numpy as np
 
-from qlearning.env import ACTIONS, BANK_CELL, OBSTACLES, START_CELL
+from qlearning.env import ACTIONS, DEFAULT_LAYOUT, GridLayout
 from qlearning.train import TrainConfig, env_step, greedy_path
 
 
@@ -80,27 +80,23 @@ TEST_CASES: tuple[TestCase, ...] = (
 )
 
 
-def _manhattan_optimum() -> int:
-    return abs(BANK_CELL[0] - START_CELL[0]) + abs(BANK_CELL[1] - START_CELL[1])
-
-
-def _check_reaches_bank(path: list[tuple[int, int]]) -> TestResult:
+def _check_reaches_bank(path: list[tuple[int, int]], layout: GridLayout) -> TestResult:
     tc = TEST_CASES[0]
-    reached = bool(path) and path[-1] == BANK_CELL
+    reached = bool(path) and path[-1] == layout.bank
     return TestResult(
         id=tc.id,
         name=tc.name,
         description=tc.description,
         passed=reached,
-        expected=f"Final cell {list(BANK_CELL)}",
+        expected=f"Final cell {list(layout.bank)}",
         actual=f"Final cell {list(path[-1])}" if path else "Empty path",
         details={"path": [list(c) for c in path]} if path else None,
     )
 
 
-def _check_path_length(path: list[tuple[int, int]]) -> TestResult:
+def _check_path_length(path: list[tuple[int, int]], layout: GridLayout) -> TestResult:
     tc = TEST_CASES[1]
-    optimum = _manhattan_optimum()
+    optimum = layout.manhattan_optimum()
     steps = len(path) - 1 if path else 0
     return TestResult(
         id=tc.id,
@@ -113,9 +109,9 @@ def _check_path_length(path: list[tuple[int, int]]) -> TestResult:
     )
 
 
-def _check_avoids_obstacles(path: list[tuple[int, int]]) -> TestResult:
+def _check_avoids_obstacles(path: list[tuple[int, int]], layout: GridLayout) -> TestResult:
     tc = TEST_CASES[2]
-    hits = [list(c) for c in path if c in OBSTACLES]
+    hits = [list(c) for c in path if c in layout.obstacles]
     return TestResult(
         id=tc.id,
         name=tc.name,
@@ -127,7 +123,9 @@ def _check_avoids_obstacles(path: list[tuple[int, int]]) -> TestResult:
     )
 
 
-def _check_valid_moves(path: list[tuple[int, int]], cfg: TrainConfig) -> TestResult:
+def _check_valid_moves(
+    path: list[tuple[int, int]], cfg: TrainConfig, layout: GridLayout
+) -> TestResult:
     tc = TEST_CASES[3]
     invalid: list[dict[str, Any]] = []
     for i in range(len(path) - 1):
@@ -137,7 +135,7 @@ def _check_valid_moves(path: list[tuple[int, int]], cfg: TrainConfig) -> TestRes
             invalid.append({"from": list(cur), "to": list(nxt), "reason": "not a cardinal move"})
             continue
         action = ACTIONS.index((dc, dr))
-        result_cell, _, _ = env_step(cur, action, cfg)
+        result_cell, _, _ = env_step(cur, action, cfg, layout)
         if result_cell != nxt:
             invalid.append({"from": list(cur), "to": list(nxt), "reason": "blocked or illegal"})
     return TestResult(
@@ -151,9 +149,9 @@ def _check_valid_moves(path: list[tuple[int, int]], cfg: TrainConfig) -> TestRes
     )
 
 
-def _check_convergence(lengths: list[int], cfg: TrainConfig) -> TestResult:
+def _check_convergence(lengths: list[int], layout: GridLayout) -> TestResult:
     tc = TEST_CASES[4]
-    threshold = _manhattan_optimum() + 6
+    threshold = layout.manhattan_optimum() + 6
     if len(lengths) < 100:
         return TestResult(
             id=tc.id,
@@ -175,9 +173,9 @@ def _check_convergence(lengths: list[int], cfg: TrainConfig) -> TestResult:
     )
 
 
-def _check_learned_value(q: np.ndarray) -> TestResult:
+def _check_learned_value(q: np.ndarray, layout: GridLayout) -> TestResult:
     tc = TEST_CASES[5]
-    v_start = float(q[START_CELL[0], START_CELL[1]].max())
+    v_start = float(q[layout.start[0], layout.start[1]].max())
     return TestResult(
         id=tc.id,
         name=tc.name,
@@ -193,18 +191,19 @@ def run_model_tests(
     q: np.ndarray,
     cfg: TrainConfig,
     lengths: list[int],
+    layout: GridLayout = DEFAULT_LAYOUT,
     *,
     max_steps: int = 200,
 ) -> dict[str, Any]:
     """Run all post-training checks and return a summary for the dashboard."""
-    path = greedy_path(q, max_steps=max_steps)
+    path = greedy_path(q, layout, max_steps=max_steps)
     results = [
-        _check_reaches_bank(path),
-        _check_path_length(path),
-        _check_avoids_obstacles(path),
-        _check_valid_moves(path, cfg),
-        _check_convergence(lengths, cfg),
-        _check_learned_value(q),
+        _check_reaches_bank(path, layout),
+        _check_path_length(path, layout),
+        _check_avoids_obstacles(path, layout),
+        _check_valid_moves(path, cfg, layout),
+        _check_convergence(lengths, layout),
+        _check_learned_value(q, layout),
     ]
     passed = sum(1 for r in results if r.passed)
     return {

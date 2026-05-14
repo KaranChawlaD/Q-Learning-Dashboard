@@ -27,12 +27,30 @@ const SPRITE_FILES = {
   right: "/assets/sprites/business_man_1_right.png",
 };
 
+const PALETTE_ITEMS = [
+  { id: "agent", label: "Agent", sprite: "down", kind: "agent" },
+  { id: "bank", label: "Bank", sprite: "bank", kind: "bank" },
+  { id: "building_1", label: "Building 1", sprite: "building_1.png", kind: "building" },
+  { id: "building_2", label: "Building 2", sprite: "building_2.png", kind: "building" },
+  { id: "building_3", label: "Building 3", sprite: "building_3.png", kind: "building" },
+];
+
 const els = {
   status: document.getElementById("status-pill"),
   statusText: document.getElementById("status-text"),
   speedText: document.getElementById("speed-text"),
   subtitle: document.getElementById("subtitle"),
   connection: document.getElementById("connection"),
+  gridTitle: document.getElementById("grid-title"),
+  gridSubtitle: document.getElementById("grid-subtitle"),
+  heatmapLegend: document.getElementById("heatmap-legend"),
+  setupCard: document.getElementById("setup-card"),
+  setupValidation: document.getElementById("setup-validation"),
+  startTrainingBtn: document.getElementById("start-training-btn"),
+  palette: document.getElementById("palette"),
+  metricsCard: document.getElementById("metrics-card"),
+  controlsCard: document.getElementById("controls-card"),
+  chartCard: document.getElementById("chart-card"),
   metricEp: document.getElementById("metric-ep"),
   metricEps: document.getElementById("metric-eps"),
   metricLast: document.getElementById("metric-last"),
@@ -48,6 +66,7 @@ const els = {
   testsList: document.getElementById("tests-list"),
   gridCanvas: document.getElementById("grid-canvas"),
   chartCanvas: document.getElementById("chart-canvas"),
+  dragGhost: document.getElementById("drag-ghost"),
 };
 
 const sprites = {};
@@ -56,9 +75,19 @@ let bankSprite = null;
 
 let socket = null;
 let config = null;
+let displayEnv = null;
 let lastState = null;
 let pendingFrame = false;
 let renderedTestsKey = null;
+let uiMode = "setup";
+
+const layoutDraft = {
+  start: null,
+  bank: null,
+  buildings: {},
+};
+
+let dragState = null;
 
 function lerp(a, b, t) {
   return [
@@ -81,6 +110,10 @@ function rgb(c) {
   return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 }
 
+function cellKey(col, row) {
+  return `${col},${row}`;
+}
+
 function loadImage(src) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -90,12 +123,12 @@ function loadImage(src) {
   });
 }
 
-async function loadAllSprites(buildings) {
+async function loadAllSprites() {
   for (const [key, src] of Object.entries(SPRITE_FILES)) {
     sprites[key] = await loadImage(src);
   }
-  for (const b of buildings) {
-    buildingSprites[b.file] = await loadImage(`/assets/elems/${b.file}`);
+  for (const file of config?.buildingFiles || []) {
+    buildingSprites[file] = await loadImage(`/assets/elems/${file}`);
   }
   bankSprite = await loadImage("/assets/elems/bank.png");
 }
@@ -121,20 +154,130 @@ function roundedRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function drawGrid(state) {
-  if (!config) return;
-  const cols = config.gridCols;
-  const rows = config.gridRows;
-  const w = cols * TILE_SIZE;
-  const h = rows * TILE_SIZE;
-  const ctx = setupCanvas(els.gridCanvas, w, h);
+function canvasCellFromEvent(event, canvas, cols, rows) {
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  const col = Math.floor(x / TILE_SIZE);
+  const row = Math.floor(y / TILE_SIZE);
+  if (col < 0 || row < 0 || col >= cols || row >= rows) return null;
+  return [col, row];
+}
 
-  ctx.clearRect(0, 0, w, h);
+function draftEnvSnapshot() {
+  const obstacles = Object.entries(layoutDraft.buildings)
+    .filter(([, pos]) => pos)
+    .map(([file, pos]) => ({ file, col: pos[0], row: pos[1] }));
+  return {
+    start: layoutDraft.start,
+    bank: layoutDraft.bank,
+    obstacles: obstacles.map((b) => [b.col, b.row]),
+    buildings: obstacles,
+  };
+}
 
-  const obstacleSet = new Set(config.obstacles.map((o) => `${o[0]},${o[1]}`));
-  const bankKey = `${config.bank[0]},${config.bank[1]}`;
+function applyDisplayEnv(env) {
+  if (!env) {
+    displayEnv = draftEnvSnapshot();
+    return;
+  }
+  displayEnv = {
+    start: env.start,
+    bank: env.bank,
+    obstacles: env.obstacles || [],
+    buildings: env.buildings || [],
+  };
+}
 
-  const span = state.vmax - state.vmin || 1;
+function pieceAtCell(col, row) {
+  if (layoutDraft.start && layoutDraft.start[0] === col && layoutDraft.start[1] === row) {
+    return { kind: "agent" };
+  }
+  if (layoutDraft.bank && layoutDraft.bank[0] === col && layoutDraft.bank[1] === row) {
+    return { kind: "bank" };
+  }
+  for (const [file, pos] of Object.entries(layoutDraft.buildings)) {
+    if (pos && pos[0] === col && pos[1] === row) {
+      return { kind: "building", file };
+    }
+  }
+  return null;
+}
+
+function clearCell(col, row) {
+  if (layoutDraft.start && layoutDraft.start[0] === col && layoutDraft.start[1] === row) {
+    layoutDraft.start = null;
+  }
+  if (layoutDraft.bank && layoutDraft.bank[0] === col && layoutDraft.bank[1] === row) {
+    layoutDraft.bank = null;
+  }
+  for (const file of Object.keys(layoutDraft.buildings)) {
+    const pos = layoutDraft.buildings[file];
+    if (pos && pos[0] === col && pos[1] === row) {
+      delete layoutDraft.buildings[file];
+    }
+  }
+}
+
+function placePiece(kind, file, col, row) {
+  clearCell(col, row);
+  if (kind === "agent") {
+    if (layoutDraft.start) clearCell(layoutDraft.start[0], layoutDraft.start[1]);
+    layoutDraft.start = [col, row];
+  } else if (kind === "bank") {
+    if (layoutDraft.bank) clearCell(layoutDraft.bank[0], layoutDraft.bank[1]);
+    layoutDraft.bank = [col, row];
+  } else if (kind === "building" && file) {
+    const old = layoutDraft.buildings[file];
+    if (old) clearCell(old[0], old[1]);
+    layoutDraft.buildings[file] = [col, row];
+  }
+  updateSetupValidation();
+  scheduleRender();
+}
+
+function removePiece(kind, file) {
+  if (kind === "agent") layoutDraft.start = null;
+  else if (kind === "bank") layoutDraft.bank = null;
+  else if (kind === "building" && file) delete layoutDraft.buildings[file];
+  updateSetupValidation();
+  scheduleRender();
+}
+
+function updateSetupValidation(message) {
+  const hasAgent = layoutDraft.start !== null;
+  const hasBank = layoutDraft.bank !== null;
+  const ready = hasAgent && hasBank;
+
+  if (message) {
+    els.setupValidation.textContent = message;
+    els.setupValidation.classList.toggle("is-error", !ready);
+    els.setupValidation.classList.toggle("is-ready", ready);
+  } else if (!hasAgent && !hasBank) {
+    els.setupValidation.textContent = "Place an agent and bank on the grid to begin.";
+    els.setupValidation.classList.remove("is-error", "is-ready");
+  } else if (!hasAgent) {
+    els.setupValidation.textContent = "Add an agent (start position) to the grid.";
+    els.setupValidation.classList.add("is-error");
+    els.setupValidation.classList.remove("is-ready");
+  } else if (!hasBank) {
+    els.setupValidation.textContent = "Add a bank (goal) to the grid.";
+    els.setupValidation.classList.add("is-error");
+    els.setupValidation.classList.remove("is-ready");
+  } else {
+    els.setupValidation.textContent = "Ready — press Start Training when your layout looks good.";
+    els.setupValidation.classList.remove("is-error");
+    els.setupValidation.classList.add("is-ready");
+  }
+
+  els.startTrainingBtn.disabled = !ready;
+}
+
+function drawEnvTiles(ctx, env, cols, rows, options = {}) {
+  const { heatmap = false, state = null } = options;
+  const obstacleSet = new Set((env.obstacles || []).map((o) => cellKey(o[0], o[1])));
+  const bankKey = env.bank ? cellKey(env.bank[0], env.bank[1]) : null;
+  const span = heatmap && state ? state.vmax - state.vmin || 1 : 1;
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
@@ -142,28 +285,102 @@ function drawGrid(state) {
       const ty = row * TILE_SIZE + TILE_GAP / 2;
       const tw = TILE_SIZE - TILE_GAP;
       const th = TILE_SIZE - TILE_GAP;
-      const key = `${col},${row}`;
+      const key = cellKey(col, row);
 
       if (obstacleSet.has(key)) {
         ctx.fillStyle = "#1c2131";
-      } else if (key === bankKey) {
-        ctx.fillStyle = "#34d399";
-      } else {
+      } else if (bankKey && key === bankKey) {
+        ctx.fillStyle = heatmap ? "#34d399" : "#1f3d34";
+      } else if (heatmap && state) {
         const idx = row * cols + col;
         const v = state.v[idx];
         const t = (v - state.vmin) / span;
         ctx.fillStyle = rgb(plasma(t));
+      } else {
+        ctx.fillStyle = "#1a2032";
       }
       roundedRect(ctx, tx, ty, tw, th, TILE_RADIUS);
       ctx.fill();
     }
   }
+}
+
+function drawSpritesOnGrid(ctx, env, agentOverride) {
+  for (const b of env.buildings || []) {
+    const img = buildingSprites[b.file];
+    if (img) {
+      ctx.drawImage(img, b.col * TILE_SIZE, b.row * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
+  }
+  if (env.bank && bankSprite) {
+    ctx.drawImage(
+      bankSprite,
+      env.bank[0] * TILE_SIZE,
+      env.bank[1] * TILE_SIZE,
+      TILE_SIZE,
+      TILE_SIZE,
+    );
+  }
+  const agent = agentOverride || (env.start ? { col: env.start[0], row: env.start[1], facing: "down" } : null);
+  if (agent) {
+    const ax = agent.col * TILE_SIZE;
+    const ay = agent.row * TILE_SIZE;
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 2;
+    roundedRect(ctx, ax + 1, ay + 1, TILE_SIZE - 2, TILE_SIZE - 2, TILE_RADIUS);
+    ctx.stroke();
+    const sprite = sprites[agent.facing || "down"];
+    if (sprite) {
+      ctx.drawImage(sprite, ax, ay, TILE_SIZE, TILE_SIZE);
+    }
+  }
+}
+
+function drawSetupGrid() {
+  if (!config) return;
+  const cols = config.gridCols;
+  const rows = config.gridRows;
+  const w = cols * TILE_SIZE;
+  const h = rows * TILE_SIZE;
+  const ctx = setupCanvas(els.gridCanvas, w, h);
+  ctx.clearRect(0, 0, w, h);
+
+  const env = draftEnvSnapshot();
+  applyDisplayEnv(null);
+  drawEnvTiles(ctx, env, cols, rows);
+  drawSpritesOnGrid(ctx, env);
+
+  if (dragState && dragState.hoverCell) {
+    const [col, row] = dragState.hoverCell;
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    roundedRect(ctx, col * TILE_SIZE + 2, row * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4, TILE_RADIUS);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawTrainingGrid(state) {
+  if (!config || !displayEnv) return;
+  const cols = config.gridCols;
+  const rows = config.gridRows;
+  const w = cols * TILE_SIZE;
+  const h = rows * TILE_SIZE;
+  const ctx = setupCanvas(els.gridCanvas, w, h);
+  ctx.clearRect(0, 0, w, h);
+
+  const obstacleSet = new Set((displayEnv.obstacles || []).map((o) => cellKey(o[0], o[1])));
+  const bankKey = displayEnv.bank ? cellKey(displayEnv.bank[0], displayEnv.bank[1]) : null;
+  const span = state.vmax - state.vmin || 1;
+
+  drawEnvTiles(ctx, displayEnv, cols, rows, { heatmap: true, state });
 
   ctx.fillStyle = "rgba(245, 247, 255, 0.82)";
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const key = `${col},${row}`;
-      if (obstacleSet.has(key) || key === bankKey) continue;
+      const key = cellKey(col, row);
+      if (obstacleSet.has(key) || (bankKey && key === bankKey)) continue;
       const idx = row * cols + col;
       const v = state.v[idx];
       if (v === 0) continue;
@@ -181,32 +398,7 @@ function drawGrid(state) {
     }
   }
 
-  for (const b of config.buildings) {
-    const img = buildingSprites[b.file];
-    if (img) {
-      ctx.drawImage(img, b.col * TILE_SIZE, b.row * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-    }
-  }
-  if (bankSprite) {
-    ctx.drawImage(
-      bankSprite,
-      config.bank[0] * TILE_SIZE,
-      config.bank[1] * TILE_SIZE,
-      TILE_SIZE,
-      TILE_SIZE,
-    );
-  }
-
-  const ax = state.agent.col * TILE_SIZE;
-  const ay = state.agent.row * TILE_SIZE;
-  ctx.strokeStyle = "#38bdf8";
-  ctx.lineWidth = 2;
-  roundedRect(ctx, ax + 1, ay + 1, TILE_SIZE - 2, TILE_SIZE - 2, TILE_RADIUS);
-  ctx.stroke();
-  const sprite = sprites[state.agent.facing];
-  if (sprite) {
-    ctx.drawImage(sprite, ax, ay, TILE_SIZE, TILE_SIZE);
-  }
+  drawSpritesOnGrid(ctx, displayEnv, state.agent);
 }
 
 function niceCeil(value, step) {
@@ -321,8 +513,33 @@ function drawChart(state) {
 
 function setStatus(text, klass) {
   els.statusText.textContent = text;
-  els.status.classList.remove("is-training", "is-paused", "is-done");
+  els.status.classList.remove("is-training", "is-paused", "is-done", "is-setup");
   els.status.classList.add(klass);
+}
+
+function setPanelMode(mode) {
+  uiMode = mode;
+  const isSetup = mode === "setup";
+
+  els.setupCard.classList.toggle("hidden", !isSetup);
+  els.metricsCard.classList.toggle("hidden", isSetup);
+  els.metricsCard.setAttribute("aria-hidden", isSetup ? "true" : "false");
+  els.controlsCard.classList.toggle("hidden", isSetup);
+  els.controlsCard.setAttribute("aria-hidden", isSetup ? "true" : "false");
+  els.chartCard.classList.toggle("hidden", isSetup);
+  els.chartCard.setAttribute("aria-hidden", isSetup ? "true" : "false");
+  els.speedText.classList.toggle("hidden", isSetup);
+  els.heatmapLegend.classList.toggle("hidden", isSetup);
+
+  if (isSetup) {
+    els.gridTitle.textContent = "Environment";
+    els.gridSubtitle.textContent = "Drag pieces from the panel onto the grid";
+    setStatus("SETUP", "is-setup");
+    els.subtitle.textContent = "Design your gridworld, then train";
+  } else {
+    els.gridTitle.textContent = "Policy Heatmap";
+    els.gridSubtitle.textContent = "max Q(s, a) per tile · arrows show greedy action";
+  }
 }
 
 function formatTestDetails(details) {
@@ -417,6 +634,14 @@ function renderModelTests(modelTests) {
 }
 
 function updateUi(state) {
+  if (state.mode === "setup") {
+    setPanelMode("setup");
+    updateSetupValidation();
+    return;
+  }
+
+  setPanelMode("training");
+  applyDisplayEnv(state.env);
   setupSpeedButtons(state.speedLevels);
   els.speedText.textContent = `${state.speed} steps / frame`;
   els.metricEp.textContent = `${state.ep} / ${state.totalEps}`;
@@ -444,7 +669,13 @@ function updateUi(state) {
     }
   }
 
-  if (state.lengths.length >= 100 && state.avg100 < 25) {
+  const optimum = displayEnv?.start && displayEnv?.bank
+    ? Math.abs(displayEnv.bank[0] - displayEnv.start[0]) +
+      Math.abs(displayEnv.bank[1] - displayEnv.start[1]) +
+      6
+    : 25;
+
+  if (state.lengths.length >= 100 && state.avg100 < optimum) {
     els.chartSubtitle.classList.add("is-converged");
     els.chartSubtitle.textContent = `Lower is better · Converged near optimum (${state.avg100.toFixed(1)} steps)`;
   } else {
@@ -476,10 +707,13 @@ function scheduleRender() {
   pendingFrame = true;
   requestAnimationFrame(() => {
     pendingFrame = false;
-    if (!lastState) return;
-    drawGrid(lastState);
-    drawChart(lastState);
-    updateUi(lastState);
+    if (uiMode === "setup") {
+      drawSetupGrid();
+    } else if (lastState) {
+      drawTrainingGrid(lastState);
+      drawChart(lastState);
+      updateUi(lastState);
+    }
   });
 }
 
@@ -502,6 +736,144 @@ function sendCommand(msg) {
   }
 }
 
+function startTrainingFromDraft() {
+  if (!layoutDraft.start || !layoutDraft.bank) {
+    updateSetupValidation("Place an agent and bank on the grid before training.");
+    return;
+  }
+  const obstacles = Object.values(layoutDraft.buildings).filter(Boolean);
+  sendCommand({
+    type: "start_training",
+    start: layoutDraft.start,
+    bank: layoutDraft.bank,
+    obstacles,
+  });
+}
+
+function paletteThumbHtml(item) {
+  if (item.kind === "agent") {
+    return `<img src="${SPRITE_FILES.down}" alt="" draggable="false" />`;
+  }
+  if (item.kind === "bank") {
+    return `<img src="/assets/elems/bank.png" alt="" draggable="false" />`;
+  }
+  return `<img src="/assets/elems/${item.sprite}" alt="" draggable="false" />`;
+}
+
+function buildPalette() {
+  els.palette.innerHTML = "";
+  for (const item of PALETTE_ITEMS) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "palette-item";
+    chip.dataset.kind = item.kind;
+    chip.dataset.file = item.sprite || "";
+    chip.setAttribute("role", "listitem");
+    chip.innerHTML = `
+      <span class="palette-thumb">${paletteThumbHtml(item)}</span>
+      <span class="palette-label">${item.label}</span>
+    `;
+    chip.addEventListener("pointerdown", (event) => beginDrag(event, item));
+    els.palette.appendChild(chip);
+  }
+}
+
+function beginDrag(event, item) {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  dragState = {
+    kind: item.kind,
+    file: item.kind === "building" ? item.sprite : null,
+    fromGrid: false,
+    hoverCell: null,
+  };
+  showDragGhost(item, event.clientX, event.clientY);
+  chipActive(event.currentTarget);
+}
+
+function chipActive(el) {
+  for (const chip of els.palette.querySelectorAll(".palette-item")) {
+    chip.classList.toggle("is-active", chip === el);
+  }
+}
+
+function showDragGhost(item, x, y) {
+  els.dragGhost.classList.remove("hidden");
+  els.dragGhost.innerHTML = paletteThumbHtml(item);
+  moveDragGhost(x, y);
+}
+
+function moveDragGhost(x, y) {
+  els.dragGhost.style.left = `${x}px`;
+  els.dragGhost.style.top = `${y}px`;
+}
+
+function hideDragGhost() {
+  els.dragGhost.classList.add("hidden");
+  els.dragGhost.innerHTML = "";
+  for (const chip of els.palette.querySelectorAll(".palette-item")) {
+    chip.classList.remove("is-active");
+  }
+}
+
+function onPointerMove(event) {
+  if (!dragState) return;
+  moveDragGhost(event.clientX, event.clientY);
+  if (!config) return;
+  const cell = canvasCellFromEvent(event, els.gridCanvas, config.gridCols, config.gridRows);
+  dragState.hoverCell = cell;
+  scheduleRender();
+}
+
+function onPointerUp(event) {
+  if (!dragState) return;
+  const cell = canvasCellFromEvent(event, els.gridCanvas, config.gridCols, config.gridRows);
+  if (cell && uiMode === "setup") {
+    if (event.altKey && dragState.fromGrid) {
+      removePiece(dragState.kind, dragState.file);
+    } else {
+      placePiece(dragState.kind, dragState.file, cell[0], cell[1]);
+    }
+  }
+  dragState = null;
+  hideDragGhost();
+  scheduleRender();
+}
+
+function onGridPointerDown(event) {
+  if (uiMode !== "setup" || event.button !== 0) return;
+  const cell = canvasCellFromEvent(event, els.gridCanvas, config.gridCols, config.gridRows);
+  if (!cell) return;
+  const piece = pieceAtCell(cell[0], cell[1]);
+  if (!piece) return;
+  event.preventDefault();
+  dragState = {
+    kind: piece.kind,
+    file: piece.file || null,
+    fromGrid: true,
+    hoverCell: cell,
+  };
+  const item = PALETTE_ITEMS.find(
+    (p) =>
+      (p.kind === piece.kind && p.kind !== "building") ||
+      (p.kind === "building" && p.sprite === piece.file),
+  );
+  if (item) showDragGhost(item, event.clientX, event.clientY);
+  clearCell(cell[0], cell[1]);
+  updateSetupValidation();
+  scheduleRender();
+}
+
+function onGridContextMenu(event) {
+  if (uiMode !== "setup") return;
+  event.preventDefault();
+  const cell = canvasCellFromEvent(event, els.gridCanvas, config.gridCols, config.gridRows);
+  if (!cell) return;
+  clearCell(cell[0], cell[1]);
+  updateSetupValidation();
+  scheduleRender();
+}
+
 function connect() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   const url = `${proto}//${location.host}/ws`;
@@ -521,11 +893,21 @@ function connect() {
     }
     if (msg.type === "init") {
       config = msg.config;
-      await loadAllSprites(config.buildings);
-      if (lastState) scheduleRender();
+      await loadAllSprites();
+      buildPalette();
+      setPanelMode("setup");
+      updateSetupValidation();
+      scheduleRender();
+    } else if (msg.type === "error") {
+      updateSetupValidation(msg.message || "Could not start training.");
     } else if (msg.type === "state") {
       lastState = msg.data;
-      if (config) scheduleRender();
+      if (lastState.mode === "setup") {
+        setPanelMode("setup");
+        scheduleRender();
+      } else if (config) {
+        scheduleRender();
+      }
     }
   });
 }
@@ -537,8 +919,17 @@ function bindControls() {
     });
   });
 
+  els.startTrainingBtn.addEventListener("click", startTrainingFromDraft);
+
+  els.gridCanvas.addEventListener("pointerdown", onGridPointerDown);
+  els.gridCanvas.addEventListener("contextmenu", onGridContextMenu);
+  window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerUp);
+
   window.addEventListener("keydown", (event) => {
-    if (event.target.matches("input, textarea")) return;
+    if (event.target.matches("input, textarea, button")) return;
+    if (uiMode !== "training") return;
     if (event.code === "Space") {
       event.preventDefault();
       sendCommand({ type: "toggle" });

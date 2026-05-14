@@ -1,7 +1,7 @@
 """FastAPI + WebSocket server for the Q-learning training dashboard.
 
-Reuses src/train.py for the env and Q-learning update so artifacts written by
-this dashboard match `python run_train.py` exactly under the same seed.
+Reuses qlearning.train for the env and Q-learning update so artifacts written
+by this dashboard match ``python run.py train`` under the same seed and layout.
 """
 
 from __future__ import annotations
@@ -23,12 +23,12 @@ from fastapi.staticfiles import StaticFiles
 
 from qlearning.env import (
     ACTION_NAMES,
-    BANK_CELL,
     GRID_COLS,
     GRID_ROWS,
     NUM_ACTIONS,
-    OBSTACLES,
-    START_CELL,
+    GridLayout,
+    parse_layout,
+    validate_layout,
 )
 from qlearning.evaluate import run_model_tests
 from qlearning.train import (
@@ -51,6 +51,8 @@ class Trainer:
 
     def __init__(self) -> None:
         self.cfg = TrainConfig()
+        self.mode = "setup"
+        self.layout: GridLayout | None = None
         self._init_run_state()
 
     def _init_run_state(self) -> None:
@@ -58,32 +60,47 @@ class Trainer:
         self.q = np.zeros((GRID_COLS, GRID_ROWS, NUM_ACTIONS), dtype=np.float64)
         self.lengths: list[int] = []
         self.ep = 0
-        self.cell = START_CELL
+        self.cell = (0, 0)
         self.facing = "down"
         self.steps_in_ep = 0
         self.speed_idx = 1
         self.paused = False
         self.finished = False
         self._artifacts_saved = False
+        if self.layout is not None:
+            self.cell = self.layout.start
 
     @property
     def speed(self) -> int:
         return SPEED_LEVELS[self.speed_idx]
 
+    def start_training(self, layout: GridLayout) -> tuple[bool, str]:
+        ok, err = validate_layout(layout)
+        if not ok:
+            return False, err
+        self.layout = layout
+        self.mode = "training"
+        self.finished = False
+        self.paused = False
+        self._artifacts_saved = False
+        self._init_run_state()
+        return True, ""
+
     def step_batch(self, n: int) -> None:
-        if self.paused or self.finished:
+        if self.mode != "training" or self.paused or self.finished or self.layout is None:
             return
         cfg = self.cfg
+        layout = self.layout
         for _ in range(n):
             if self.ep >= cfg.episodes:
                 self.finished = True
                 if not self._artifacts_saved:
-                    save_artifacts(self.q, cfg, greedy_path(self.q))
+                    save_artifacts(self.q, cfg, greedy_path(self.q, layout), layout)
                     self._artifacts_saved = True
                 return
             eps_v = epsilon_for(self.ep, cfg)
             action = choose_action(self.q, self.cell, eps_v, self.rng)
-            next_cell, reward, done = env_step(self.cell, action, cfg)
+            next_cell, reward, done = env_step(self.cell, action, cfg, layout)
             best_next = 0.0 if done else float(self.q[next_cell[0], next_cell[1]].max())
             td_target = reward + cfg.gamma * best_next
             self.q[self.cell[0], self.cell[1], action] += cfg.alpha * (
@@ -95,10 +112,12 @@ class Trainer:
             if done or self.steps_in_ep >= cfg.max_steps:
                 self.lengths.append(self.steps_in_ep)
                 self.ep += 1
-                self.cell = START_CELL
+                self.cell = layout.start
                 self.steps_in_ep = 0
 
     def reset(self) -> None:
+        self.mode = "setup"
+        self.layout = None
         self._init_run_state()
 
     def set_speed(self, idx: int) -> None:
@@ -106,20 +125,32 @@ class Trainer:
             self.speed_idx = idx
 
     def toggle_pause(self) -> None:
-        if not self.finished:
+        if self.mode == "training" and not self.finished:
             self.paused = not self.paused
 
     def save_now(self) -> None:
-        save_artifacts(self.q, self.cfg, greedy_path(self.q))
+        if self.layout is not None:
+            save_artifacts(self.q, self.cfg, greedy_path(self.q, self.layout), self.layout)
+
+    def _layout_dict(self) -> dict[str, Any] | None:
+        if self.layout is None:
+            return None
+        return {
+            "start": list(self.layout.start),
+            "bank": list(self.layout.bank),
+            "obstacles": [list(c) for c in sorted(self.layout.obstacles)],
+            "buildings": self.layout.buildings(),
+        }
 
     def snapshot(self) -> dict[str, Any]:
         v = self.q.max(axis=2)
         best = self.q.argmax(axis=2)
 
         free_mask = np.ones_like(v, dtype=bool)
-        for oc, or_ in OBSTACLES:
-            free_mask[oc, or_] = False
-        free_mask[BANK_CELL[0], BANK_CELL[1]] = False
+        if self.layout is not None:
+            for oc, or_ in self.layout.obstacles:
+                free_mask[oc, or_] = False
+            free_mask[self.layout.bank[0], self.layout.bank[1]] = False
         if free_mask.any():
             free_v = v[free_mask]
             vmin = float(free_v.min())
@@ -138,15 +169,21 @@ class Trainer:
         last_len = self.lengths[-1] if self.lengths else 0
 
         model_tests = None
-        if self.finished:
+        if self.finished and self.layout is not None:
             model_tests = run_model_tests(
-                self.q, self.cfg, self.lengths, max_steps=self.cfg.max_steps
+                self.q,
+                self.cfg,
+                self.lengths,
+                self.layout,
+                max_steps=self.cfg.max_steps,
             )
 
         return {
+            "mode": self.mode,
+            "env": self._layout_dict(),
             "ep": self.ep,
             "totalEps": self.cfg.episodes,
-            "eps": float(epsilon_for(self.ep, self.cfg)),
+            "eps": float(epsilon_for(self.ep, self.cfg)) if self.mode == "training" else 0.0,
             "speed": self.speed,
             "speedIdx": self.speed_idx,
             "speedLevels": list(SPEED_LEVELS),
@@ -171,15 +208,8 @@ class Trainer:
         return {
             "gridCols": GRID_COLS,
             "gridRows": GRID_ROWS,
-            "start": list(START_CELL),
-            "bank": list(BANK_CELL),
-            "obstacles": [list(o) for o in sorted(OBSTACLES)],
             "actions": list(ACTION_NAMES),
-            "buildings": [
-                {"file": "building_1.png", "col": 3, "row": 2},
-                {"file": "building_2.png", "col": 6, "row": 4},
-                {"file": "building_3.png", "col": 8, "row": 6},
-            ],
+            "buildingFiles": ["building_1.png", "building_2.png", "building_3.png"],
         }
 
 
@@ -222,14 +252,27 @@ async def index() -> FileResponse:
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
-def _handle_command(msg: dict) -> None:
+def _handle_command(msg: dict) -> dict[str, Any] | None:
     cmd = msg.get("type")
+    if cmd == "start_training":
+        try:
+            layout = parse_layout(
+                msg["start"],
+                msg["bank"],
+                msg.get("obstacles", []),
+            )
+        except (KeyError, TypeError, ValueError, IndexError):
+            return {"type": "error", "message": "Invalid layout payload."}
+        ok, err = trainer.start_training(layout)
+        if not ok:
+            return {"type": "error", "message": err}
+        return None
     if cmd == "toggle":
         trainer.toggle_pause()
     elif cmd == "pause":
         trainer.paused = True
     elif cmd == "resume":
-        if not trainer.finished:
+        if trainer.mode == "training" and not trainer.finished:
             trainer.paused = False
     elif cmd == "speed":
         idx = int(msg.get("idx", trainer.speed_idx))
@@ -238,13 +281,16 @@ def _handle_command(msg: dict) -> None:
         trainer.save_now()
     elif cmd == "reset":
         trainer.reset()
+    return None
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
     try:
-        await websocket.send_text(json.dumps({"type": "init", "config": trainer.static_config()}))
+        await websocket.send_text(
+            json.dumps({"type": "init", "config": trainer.static_config()})
+        )
         await websocket.send_text(json.dumps({"type": "state", "data": trainer.snapshot()}))
     except Exception:
         await websocket.close()
@@ -268,7 +314,12 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             except json.JSONDecodeError:
                 continue
             if isinstance(msg, dict):
-                _handle_command(msg)
+                err = _handle_command(msg)
+                if err is not None:
+                    await websocket.send_text(json.dumps(err))
+                await websocket.send_text(
+                    json.dumps({"type": "state", "data": trainer.snapshot()})
+                )
     except WebSocketDisconnect:
         pass
     finally:

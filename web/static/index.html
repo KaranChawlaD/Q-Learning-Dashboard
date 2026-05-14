@@ -17,15 +17,15 @@
     <header class="topbar">
       <div class="brand">
         <h1>Q-Learning Trainer</h1>
-        <p class="subtitle" id="subtitle">Tabular agent · 12 × 9 gridworld</p>
+        <p class="subtitle" id="subtitle">Design your gridworld, then train</p>
       </div>
       <div class="topbar-right">
         <div class="connection" id="connection">
           <span class="dot"></span><span class="label">Connecting…</span>
         </div>
-        <div class="speed-text" id="speed-text">5 steps / frame</div>
-        <div class="status pill" id="status-pill">
-          <span class="dot"></span><span id="status-text">TRAINING</span>
+        <div class="speed-text hidden" id="speed-text">5 steps / frame</div>
+        <div class="status pill is-setup" id="status-pill">
+          <span class="dot"></span><span id="status-text">SETUP</span>
         </div>
       </div>
     </header>
@@ -33,14 +33,14 @@
     <section class="card grid-card">
       <header class="card-head">
         <div>
-          <h2>Policy Heatmap</h2>
-          <p>max Q(s, a) per tile · arrows show greedy action</p>
+          <h2 id="grid-title">Environment</h2>
+          <p id="grid-subtitle">Drag pieces from the panel onto the grid</p>
         </div>
       </header>
       <div class="grid-stage">
         <canvas id="grid-canvas"></canvas>
       </div>
-      <div class="legend">
+      <div class="legend hidden" id="heatmap-legend">
         <div class="legend-bar"></div>
         <div class="legend-labels">
           <span>V min <strong id="legend-min">—</strong></span>
@@ -49,7 +49,23 @@
       </div>
     </section>
 
-    <section class="card metrics-card">
+    <section class="card setup-card" id="setup-card">
+      <header class="card-head">
+        <div>
+          <h2>Design Environment</h2>
+          <p>Drag agent, bank, and buildings onto the grid</p>
+        </div>
+      </header>
+      <div class="palette" id="palette" role="list"></div>
+      <p class="setup-validation" id="setup-validation" aria-live="polite">
+        Place an agent and bank on the grid to begin.
+      </p>
+      <button type="button" class="start-training-btn" id="start-training-btn" disabled>
+        Start Training
+      </button>
+    </section>
+
+    <section class="card metrics-card hidden" id="metrics-card" aria-hidden="true">
       <header class="card-head"><h2>Metrics</h2></header>
       <div class="metrics-grid">
         <div class="stat">
@@ -71,7 +87,7 @@
       </div>
     </section>
 
-    <section class="card controls-card">
+    <section class="card controls-card hidden" id="controls-card" aria-hidden="true">
       <header class="card-head"><h2>Controls</h2></header>
       <div class="controls-list">
         <button class="ctl" data-cmd="toggle">
@@ -86,7 +102,7 @@
           <kbd>S</kbd><span>Save Q-table to assets/</span>
         </button>
         <button class="ctl" data-cmd="reset">
-          <kbd>R</kbd><span>Restart training</span>
+          <kbd>R</kbd><span>Edit environment</span>
         </button>
       </div>
     </section>
@@ -102,7 +118,7 @@
       <div class="tests-list" id="tests-list" role="list"></div>
     </section>
 
-    <section class="card chart-card">
+    <section class="card chart-card hidden" id="chart-card" aria-hidden="true">
       <header class="card-head">
         <div>
           <h2>Steps per Episode</h2>
@@ -118,6 +134,8 @@
       </div>
     </section>
   </div>
+
+  <div class="drag-ghost hidden" id="drag-ghost" aria-hidden="true"></div>
 
   <script src="/static/app.js"></script>
 </body>
