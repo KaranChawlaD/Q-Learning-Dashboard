@@ -707,7 +707,8 @@ function scheduleRender() {
   pendingFrame = true;
   requestAnimationFrame(() => {
     pendingFrame = false;
-    if (uiMode === "setup") {
+    const mode = lastState?.mode || uiMode;
+    if (mode === "setup") {
       drawSetupGrid();
     } else if (lastState) {
       drawTrainingGrid(lastState);
@@ -741,7 +742,13 @@ function startTrainingFromDraft() {
     updateSetupValidation("Place an agent and bank on the grid before training.");
     return;
   }
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    updateSetupValidation("Not connected to the server — wait for the connection indicator.");
+    return;
+  }
   const obstacles = Object.values(layoutDraft.buildings).filter(Boolean);
+  els.startTrainingBtn.disabled = true;
+  els.startTrainingBtn.textContent = "Starting…";
   sendCommand({
     type: "start_training",
     start: layoutDraft.start,
@@ -899,13 +906,18 @@ function connect() {
       updateSetupValidation();
       scheduleRender();
     } else if (msg.type === "error") {
+      els.startTrainingBtn.disabled = false;
+      els.startTrainingBtn.textContent = "Start Training";
       updateSetupValidation(msg.message || "Could not start training.");
     } else if (msg.type === "state") {
       lastState = msg.data;
       if (lastState.mode === "setup") {
         setPanelMode("setup");
-        scheduleRender();
+        els.startTrainingBtn.textContent = "Start Training";
+        updateSetupValidation();
       } else if (config) {
+        setPanelMode("training");
+        applyDisplayEnv(lastState.env);
         scheduleRender();
       }
     }
