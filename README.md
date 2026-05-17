@@ -46,7 +46,14 @@ Q-Learning/
 │   └── static/            # vanilla HTML/CSS/JS, no build step
 │       ├── index.html
 │       ├── style.css
-│       └── app.js
+│       └── js/            # ES modules (see CONTRIBUTING.md)
+│           ├── main.js      # entry point
+│           ├── state.js     # session state
+│           ├── websocket.js # server connection
+│           ├── setup-editor.js
+│           ├── grid.js      # policy heatmap rendering
+│           ├── chart.js
+│           └── …
 ├── run.py                 # entry point (dispatches to web|train|manual)
 ├── requirements.txt       # runtime Python dependencies
 ├── requirements-dev.txt   # adds dev tools (Ruff); includes requirements.txt
@@ -153,6 +160,11 @@ Settings live in `pyproject.toml` (`[tool.ruff]`).
 - Optional “load default layout” preset in the environment editor
 
 ## Version History
+
+### v0.8.1 - Dashboard Frontend Modules
+
+- Split the monolithic `web/static/app.js` into focused ES modules under `web/static/js/` (no bundler; native `import` in the browser)
+- Centralized WebSocket commands in `commands.js` and session state in `state.js`
 
 ### v0.8.0 - Custom Layouts and Model Tests
 

@@ -245,6 +245,8 @@ python run.py web --no-browser --port 8765
 - Expand model-test rows after training completes; confirm pass/fail details render
 - Watch the DevTools console — any uncaught error fails the smoke test
 
+When adding or moving frontend logic, keep modules small and update the table in [Frontend Changes](#frontend-changes) if you add a new file.
+
 **For algorithm changes (`qlearning/train.py`, `qlearning/env.py`):**
 
 - Run `python run.py train` on the **default layout** and verify the greedy path is still **19 steps** (`seed=42`)
@@ -259,9 +261,29 @@ python run.py web --no-browser --port 8765
 
 ## Frontend Changes
 
-The dashboard frontend is intentionally **vanilla HTML/CSS/JS with no build step**. There is no `package.json`, no bundler, no transpiler, no framework.
+The dashboard frontend is intentionally **vanilla HTML/CSS/JS with no build step**. There is no `package.json`, no bundler, no transpiler, no framework. The UI is loaded as **native ES modules** (`<script type="module" src="/static/js/main.js">`).
 
 This is a deliberate constraint — it keeps the project trivial to install, debug, and serve. **Please don't introduce a build pipeline without discussing it in an issue first.**
+
+### Module layout (`web/static/js/`)
+
+| File | Responsibility |
+|------|----------------|
+| `main.js` | Entry point: binds DOM events, starts WebSocket |
+| `state.js` | Mutable session state (socket, layout draft, sprites) |
+| `constants.js` | Grid size, palette items, sprite paths |
+| `dom.js` | Cached `document.getElementById` references |
+| `commands.js` | Outbound WebSocket messages |
+| `websocket.js` | Connection lifecycle and inbound message handling |
+| `layout.js` | Layout draft helpers and validation copy |
+| `setup-editor.js` | Palette, drag-and-drop, piece placement |
+| `grid.js` | Policy heatmap canvas rendering |
+| `chart.js` | Steps-per-episode chart |
+| `model-tests.js` | Post-training test-case panel |
+| `render-loop.js` | `requestAnimationFrame` scheduling |
+| `ui.js` | Panel visibility, status pill, metrics text |
+| `sprites.js` | Image loading |
+| `canvas.js` / `color.js` | Low-level drawing utilities |
 
 What that means in practice:
 
@@ -269,6 +291,7 @@ What that means in practice:
 - No TypeScript, no JSX, no Sass — plain `.js`, `.html`, `.css`
 - No npm dependencies — load anything external from a CDN with an integrity hash, or vendor it into `web/static/`
 - CSS variables for theming (already wired up in `:root`); avoid hardcoding colors mid-stylesheet
+- Prefer adding a new module over growing an existing one past ~250 lines; keep imports acyclic (`commands.js` and `state.js` are shared leaves)
 
 ## Documentation Updates
 
