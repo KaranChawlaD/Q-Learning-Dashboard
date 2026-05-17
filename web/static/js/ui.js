@@ -68,10 +68,10 @@ export function updateUi(trainingState) {
   els.legendMin.textContent = `${trainingState.vmin >= 0 ? "+" : ""}${trainingState.vmin.toFixed(1)}`;
   els.legendMax.textContent = `${trainingState.vmax >= 0 ? "+" : ""}${trainingState.vmax.toFixed(1)}`;
 
-  if (trainingState.finished) {
+    if (trainingState.finished) {
     setStatus("DONE", "is-done");
     els.subtitle.textContent = `Trained ${trainingState.totalEps} episodes · agent at ${trainingState.agent.col}, ${trainingState.agent.row}`;
-    els.toggleLabel.textContent = "Restart to train again";
+    els.toggleLabel.textContent = "Restart training (Space)";
     renderModelTests(trainingState.modelTests);
   } else {
     els.testsCard.classList.add("hidden");

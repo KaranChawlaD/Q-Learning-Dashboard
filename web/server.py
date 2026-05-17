@@ -115,6 +115,16 @@ class Trainer:
                 self.cell = layout.start
                 self.steps_in_ep = 0
 
+    def restart_training(self) -> None:
+        """Re-run training on the current layout without returning to setup."""
+        if self.layout is None:
+            return
+        self.mode = "training"
+        self.finished = False
+        self.paused = False
+        self._artifacts_saved = False
+        self._init_run_state()
+
     def reset(self) -> None:
         self.mode = "setup"
         self.layout = None
@@ -125,7 +135,11 @@ class Trainer:
             self.speed_idx = idx
 
     def toggle_pause(self) -> None:
-        if self.mode == "training" and not self.finished:
+        if self.mode != "training":
+            return
+        if self.finished:
+            self.restart_training()
+        else:
             self.paused = not self.paused
 
     def save_now(self) -> None:

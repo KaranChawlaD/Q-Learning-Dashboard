@@ -16,12 +16,12 @@
   "grid_cols": 12,
   "grid_rows": 9,
   "start": [
-    11,
-    2
+    6,
+    0
   ],
   "bank": [
-    10,
-    2
+    9,
+    0
   ],
   "obstacles": [],
   "actions": [
@@ -32,13 +32,21 @@
   ],
   "greedy_path": [
     [
-      11,
-      2
+      6,
+      0
     ],
     [
-      10,
-      2
+      7,
+      0
+    ],
+    [
+      8,
+      0
+    ],
+    [
+      9,
+      0
     ]
   ],
-  "greedy_path_length": 1
+  "greedy_path_length": 3
 }
