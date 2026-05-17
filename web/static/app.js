@@ -233,6 +233,7 @@ function placePiece(kind, file, col, row) {
     layoutDraft.buildings[file] = [col, row];
   }
   updateSetupValidation();
+  refreshPalette();
   scheduleRender();
 }
 
@@ -241,6 +242,7 @@ function removePiece(kind, file) {
   else if (kind === "bank") layoutDraft.bank = null;
   else if (kind === "building" && file) delete layoutDraft.buildings[file];
   updateSetupValidation();
+  refreshPalette();
   scheduleRender();
 }
 
@@ -767,9 +769,17 @@ function paletteThumbHtml(item) {
   return `<img src="/assets/elems/${item.sprite}" alt="" draggable="false" />`;
 }
 
-function buildPalette() {
+function visiblePaletteItems() {
+  return PALETTE_ITEMS.filter((item) => {
+    if (item.kind === "agent") return layoutDraft.start === null;
+    if (item.kind === "bank") return layoutDraft.bank === null;
+    return true;
+  });
+}
+
+function refreshPalette() {
   els.palette.innerHTML = "";
-  for (const item of PALETTE_ITEMS) {
+  for (const item of visiblePaletteItems()) {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "palette-item";
@@ -783,6 +793,10 @@ function buildPalette() {
     chip.addEventListener("pointerdown", (event) => beginDrag(event, item));
     els.palette.appendChild(chip);
   }
+}
+
+function buildPalette() {
+  refreshPalette();
 }
 
 function beginDrag(event, item) {
@@ -867,6 +881,7 @@ function onGridPointerDown(event) {
   );
   if (item) showDragGhost(item, event.clientX, event.clientY);
   clearCell(cell[0], cell[1]);
+  refreshPalette();
   updateSetupValidation();
   scheduleRender();
 }
@@ -877,6 +892,7 @@ function onGridContextMenu(event) {
   const cell = canvasCellFromEvent(event, els.gridCanvas, config.gridCols, config.gridRows);
   if (!cell) return;
   clearCell(cell[0], cell[1]);
+  refreshPalette();
   updateSetupValidation();
   scheduleRender();
 }
@@ -914,7 +930,9 @@ function connect() {
       if (lastState.mode === "setup") {
         setPanelMode("setup");
         els.startTrainingBtn.textContent = "Start Training";
+        refreshPalette();
         updateSetupValidation();
+        scheduleRender();
       } else if (config) {
         setPanelMode("training");
         applyDisplayEnv(lastState.env);
