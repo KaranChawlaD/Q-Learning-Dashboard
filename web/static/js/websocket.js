@@ -1,5 +1,11 @@
 import { sendCommand } from "./commands.js";
 import { els } from "./dom.js";
+import {
+  applyHyperparameterDefaults,
+  bindHyperparameterLab,
+  readHyperparameterPayload,
+  setHyperparameterError,
+} from "./hyperparams.js";
 import { applyDisplayEnv, updateSetupValidation } from "./layout.js";
 import { buildPalette, refreshPalette } from "./setup-editor.js";
 import { loadAllSprites } from "./sprites.js";
@@ -17,6 +23,11 @@ export function startTrainingFromDraft() {
     return;
   }
   const obstacles = Object.values(layoutDraft.buildings).filter(Boolean);
+  const hp = readHyperparameterPayload();
+  if (!hp.ok) {
+    setHyperparameterError(hp.message || "Invalid hyperparameters.");
+    return;
+  }
   els.startTrainingBtn.disabled = true;
   els.startTrainingBtn.textContent = "Starting…";
   sendCommand({
@@ -24,6 +35,7 @@ export function startTrainingFromDraft() {
     start: layoutDraft.start,
     bank: layoutDraft.bank,
     obstacles,
+    train_config: hp.payload,
   });
 }
 
@@ -48,6 +60,8 @@ export function connect() {
       appState.config = msg.config;
       await loadAllSprites();
       buildPalette();
+      bindHyperparameterLab();
+      applyHyperparameterDefaults(msg.config.trainConfig);
       setPanelMode("setup");
       updateSetupValidation();
       requestRender();

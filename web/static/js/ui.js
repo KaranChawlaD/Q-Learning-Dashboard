@@ -14,8 +14,13 @@ export function setStatus(text, klass) {
 export function setPanelMode(mode) {
   appState.uiMode = mode;
   const isSetup = mode === "setup";
+  els.appRoot.classList.toggle("is-setup", isSetup);
+  els.appRoot.classList.toggle("is-training", !isSetup);
 
   els.setupCard.classList.toggle("hidden", !isSetup);
+  if (els.labCard) {
+    els.labCard.classList.toggle("hidden", !isSetup);
+  }
   els.metricsCard.classList.toggle("hidden", isSetup);
   els.metricsCard.setAttribute("aria-hidden", isSetup ? "true" : "false");
   els.controlsCard.classList.toggle("hidden", isSetup);

@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="app">
+  <div class="app is-setup" id="app-root">
     <header class="topbar">
       <div class="brand">
         <h1>Q-Learning Trainer</h1>
@@ -47,22 +47,78 @@
           <span><strong id="legend-max">—</strong> V max</span>
         </div>
       </div>
+      <section class="grid-setup-panel" id="setup-card">
+        <header class="card-head">
+          <div>
+            <h2>Design Environment</h2>
+            <p>Drag agent, bank, and buildings onto the grid</p>
+          </div>
+        </header>
+        <div class="palette" id="palette" role="list"></div>
+        <p class="setup-validation" id="setup-validation" aria-live="polite">
+          Place an agent and bank on the grid to begin.
+        </p>
+        <button type="button" class="start-training-btn" id="start-training-btn" disabled>
+          Start Training
+        </button>
+      </section>
     </section>
 
-    <section class="card setup-card" id="setup-card">
-      <header class="card-head">
-        <div>
-          <h2>Design Environment</h2>
-          <p>Drag agent, bank, and buildings onto the grid</p>
+    <section class="card setup-lab-card" id="lab-card">
+      <section class="lab-panel" aria-label="Hyperparameter Lab">
+        <header class="lab-head">
+          <h3>Hyperparameter Lab</h3>
+          <button type="button" class="lab-reset-btn" id="lab-reset-btn">Reset defaults</button>
+        </header>
+        <div class="lab-grid">
+          <label class="lab-field">
+            <span class="lab-label">Alpha</span>
+            <input type="range" id="hp-alpha-range" min="0.01" max="1" step="0.01" />
+            <input type="number" id="hp-alpha-number" min="0.01" max="1" step="0.01" />
+          </label>
+          <label class="lab-field">
+            <span class="lab-label">Gamma</span>
+            <input type="range" id="hp-gamma-range" min="0.01" max="0.999" step="0.001" />
+            <input type="number" id="hp-gamma-number" min="0.01" max="0.999" step="0.001" />
+          </label>
+          <label class="lab-field">
+            <span class="lab-label">Epsilon start</span>
+            <input type="range" id="hp-epsilon-start-range" min="0" max="1" step="0.01" />
+            <input type="number" id="hp-epsilon-start-number" min="0" max="1" step="0.01" />
+          </label>
+          <label class="lab-field">
+            <span class="lab-label">Epsilon end</span>
+            <input type="range" id="hp-epsilon-end-range" min="0" max="1" step="0.01" />
+            <input type="number" id="hp-epsilon-end-number" min="0" max="1" step="0.01" />
+          </label>
+          <label class="lab-field">
+            <span class="lab-label">Epsilon decay episodes</span>
+            <input type="range" id="hp-epsilon-decay-range" min="10" max="10000" step="10" />
+            <input type="number" id="hp-epsilon-decay-number" min="10" max="10000" step="10" />
+          </label>
+          <label class="lab-field">
+            <span class="lab-label">Reward (goal)</span>
+            <input type="range" id="hp-reward-goal-range" min="1" max="300" step="1" />
+            <input type="number" id="hp-reward-goal-number" min="1" max="300" step="1" />
+          </label>
+          <label class="lab-field">
+            <span class="lab-label">Reward (step)</span>
+            <input type="range" id="hp-reward-step-range" min="-20" max="0" step="0.5" />
+            <input type="number" id="hp-reward-step-number" min="-20" max="0" step="0.5" />
+          </label>
+          <label class="lab-field">
+            <span class="lab-label">Reward (blocked)</span>
+            <input type="range" id="hp-reward-blocked-range" min="-50" max="0" step="0.5" />
+            <input type="number" id="hp-reward-blocked-number" min="-50" max="0" step="0.5" />
+          </label>
+          <label class="lab-field">
+            <span class="lab-label">Seed</span>
+            <input type="range" id="hp-seed-range" min="0" max="100000" step="1" />
+            <input type="number" id="hp-seed-number" min="0" max="100000" step="1" />
+          </label>
         </div>
-      </header>
-      <div class="palette" id="palette" role="list"></div>
-      <p class="setup-validation" id="setup-validation" aria-live="polite">
-        Place an agent and bank on the grid to begin.
-      </p>
-      <button type="button" class="start-training-btn" id="start-training-btn" disabled>
-        Start Training
-      </button>
+        <p class="lab-validation" id="lab-validation" aria-live="polite"></p>
+      </section>
     </section>
 
     <section class="card metrics-card hidden" id="metrics-card" aria-hidden="true">

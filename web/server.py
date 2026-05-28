@@ -46,6 +46,53 @@ SNAPSHOT_INTERVAL_S = 0.08
 DIRECTION_FOR_ACTION = ("up", "down", "left", "right")
 
 
+def _parse_train_config(raw: dict[str, Any] | None, base: TrainConfig) -> TrainConfig:
+    if raw is None:
+        return base
+    if not isinstance(raw, dict):
+        raise ValueError("train_config must be an object.")
+
+    cfg = TrainConfig(**vars(base))
+
+    def _num(key: str, *, integer: bool = False) -> float | int:
+        if key not in raw:
+            return getattr(cfg, key)
+        value = raw[key]
+        if isinstance(value, bool):
+            raise ValueError(f"{key} must be numeric.")
+        out = int(value) if integer else float(value)
+        if not np.isfinite(out):
+            raise ValueError(f"{key} must be finite.")
+        return out
+
+    cfg.alpha = float(_num("alpha"))
+    cfg.gamma = float(_num("gamma"))
+    cfg.epsilon_start = float(_num("epsilon_start"))
+    cfg.epsilon_end = float(_num("epsilon_end"))
+    cfg.epsilon_decay_episodes = int(_num("epsilon_decay_episodes", integer=True))
+    cfg.reward_goal = float(_num("reward_goal"))
+    cfg.reward_step = float(_num("reward_step"))
+    cfg.reward_blocked = float(_num("reward_blocked"))
+    cfg.seed = int(_num("seed", integer=True))
+
+    if not (0.0 < cfg.alpha <= 1.0):
+        raise ValueError("alpha must be in (0, 1].")
+    if not (0.0 < cfg.gamma < 1.0):
+        raise ValueError("gamma must be in (0, 1).")
+    if not (0.0 <= cfg.epsilon_end <= cfg.epsilon_start <= 1.0):
+        raise ValueError("epsilon values must satisfy 0 <= epsilon_end <= epsilon_start <= 1.")
+    if cfg.epsilon_decay_episodes < 1:
+        raise ValueError("epsilon_decay_episodes must be >= 1.")
+    if cfg.reward_goal <= 0:
+        raise ValueError("reward_goal must be positive.")
+    if cfg.reward_blocked > cfg.reward_step:
+        raise ValueError("reward_blocked should be <= reward_step.")
+    if cfg.seed < 0:
+        raise ValueError("seed must be >= 0.")
+
+    return cfg
+
+
 class Trainer:
     """Single-source-of-truth training state, mutated only on the asyncio loop."""
 
@@ -74,10 +121,16 @@ class Trainer:
     def speed(self) -> int:
         return SPEED_LEVELS[self.speed_idx]
 
-    def start_training(self, layout: GridLayout) -> tuple[bool, str]:
+    def start_training(
+        self, layout: GridLayout, train_config_raw: dict[str, Any] | None = None
+    ) -> tuple[bool, str]:
         ok, err = validate_layout(layout)
         if not ok:
             return False, err
+        try:
+            self.cfg = _parse_train_config(train_config_raw, TrainConfig())
+        except ValueError as exc:
+            return False, str(exc)
         self.layout = layout
         self.mode = "training"
         self.finished = False
@@ -224,6 +277,17 @@ class Trainer:
             "gridRows": GRID_ROWS,
             "actions": list(ACTION_NAMES),
             "buildingFiles": ["building_1.png", "building_2.png", "building_3.png"],
+            "trainConfig": {
+                "alpha": self.cfg.alpha,
+                "gamma": self.cfg.gamma,
+                "epsilon_start": self.cfg.epsilon_start,
+                "epsilon_end": self.cfg.epsilon_end,
+                "epsilon_decay_episodes": self.cfg.epsilon_decay_episodes,
+                "reward_goal": self.cfg.reward_goal,
+                "reward_step": self.cfg.reward_step,
+                "reward_blocked": self.cfg.reward_blocked,
+                "seed": self.cfg.seed,
+            },
         }
 
 
@@ -277,7 +341,7 @@ def _handle_command(msg: dict) -> dict[str, Any] | None:
             )
         except (KeyError, TypeError, ValueError, IndexError):
             return {"type": "error", "message": "Invalid layout payload."}
-        ok, err = trainer.start_training(layout)
+        ok, err = trainer.start_training(layout, msg.get("train_config"))
         if not ok:
             return {"type": "error", "message": err}
         return None
