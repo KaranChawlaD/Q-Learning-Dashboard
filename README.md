@@ -9,7 +9,7 @@ pip install -r requirements.txt
 python run.py
 ```
 
-`python run.py` defaults to the `web` subcommand: it starts a local FastAPI server on `http://127.0.0.1:8000` and opens your browser to it. Drag an **agent** and **bank** onto the grid (required), optionally add **buildings**, then click **Start Training**. From there you can pause, change training speed, save the trained Q-table, run post-training model checks, or return to the environment editor.
+`python run.py` defaults to the `web` subcommand: it starts a local FastAPI server on `http://127.0.0.1:8000` and opens your browser to it. In setup mode, place an **agent** and **bank** onto the grid (required), optionally add **buildings**, tune hyperparameters in the **Hyperparameter Lab**, then click **Start Training**. From there you can pause, change training speed, save the trained Q-table, run post-training model checks, or return to the environment editor.
 
 ## Subcommands
 
@@ -77,7 +77,12 @@ Training and evaluation code accept a `GridLayout` so the dashboard and headless
 
 ## Web Dashboard
 
-`python run.py web` starts a local FastAPI server (default `http://127.0.0.1:8000`). The dashboard opens in **SETUP** mode: drag pieces from the right-hand panel onto the policy grid (agent and bank are removed from the panel once placed; buildings can be placed repeatedly). Click **Start Training** when both agent and bank are on the grid. Training runs in a background asyncio task; state snapshots are pushed to the browser over a WebSocket at ~12 fps.
+`python run.py web` starts a local FastAPI server (default `http://127.0.0.1:8000`). The dashboard opens in **SETUP** mode: use the left panel to design the environment (drag pieces onto the grid) and the right **Hyperparameter Lab** panel to tune training values before you start. Click **Start Training** when both agent and bank are on the grid. Training runs in a background asyncio task; state snapshots are pushed to the browser over a WebSocket at ~12 fps.
+
+Setup-mode panel layout:
+
+- **Left (Environment + Design Environment)** — map canvas plus palette-based placement controls.
+- **Right (Hyperparameter Lab)** — pre-training controls for `alpha`, `gamma`, epsilon schedule (`start`, `end`, `decay episodes`), rewards (`goal`, `step`, `blocked`), and `seed`.
 
 What you see after training starts:
 
@@ -107,7 +112,7 @@ Keyboard shortcuts (browser tab focused, **training mode only**):
 | `S` | Save the current Q-table to `assets/` |
 | `R` | Return to the environment editor |
 
-**Setup mode:** drag agent, bank, and buildings from the panel onto the grid; right-click a cell to clear it; drag an on-grid piece to move it.
+**Setup mode:** drag agent, bank, and buildings from the Design Environment panel onto the grid; right-click a cell to clear it; drag an on-grid piece to move it. Adjust Hyperparameter Lab inputs before starting training (includes a one-click reset to defaults).
 
 The dashboard auto-reconnects if the server restarts.
 
@@ -115,7 +120,7 @@ The dashboard auto-reconnects if the server restarts.
 
 `python run.py train` runs the same algorithm without the dashboard and prints progress every 250 episodes. Useful for CI, scripting, or quick reproduction.
 
-Default hyperparameters (override by editing `TrainConfig` in `qlearning/train.py`):
+Default hyperparameters for CLI `train` (override by editing `TrainConfig` in `qlearning/train.py`):
 
 - `episodes = 5000`, `max_steps = 200`
 - `alpha = 0.1`, `gamma = 0.95`
@@ -128,7 +133,7 @@ After training the script prints the greedy policy path (start to bank) and writ
 - `assets/q_table.npy` — NumPy array of shape `(12, 9, 4)`
 - `assets/q_meta.json` — Hyperparameters, env config, and greedy path
 
-The web dashboard writes these same files when training finishes (or when you hit `S`).
+The web dashboard writes these same files when training finishes (or when you hit `S`). In the dashboard, these values can be overridden per run via Hyperparameter Lab without changing Python source defaults.
 
 ## Manual Mode
 
@@ -160,6 +165,13 @@ Settings live in `pyproject.toml` (`[tool.ruff]`).
 - Optional “load default layout” preset in the environment editor
 
 ## Version History
+
+### v0.9.0 - Hyperparameter Lab + Setup Layout Refresh
+
+- Added a setup-time **Hyperparameter Lab** panel with slider + numeric controls for `alpha`, `gamma`, epsilon schedule, rewards, and `seed`
+- Wired dashboard `start_training` to send a validated `train_config` payload over WebSocket; backend now validates and applies per-run training config before each run
+- Split dashboard CSS grid by mode so setup and training layouts are independent and stable
+- Merged **Environment** and **Design Environment** into a single left setup card; moved Hyperparameter Lab to the right setup column
 
 ### v0.8.1 - Dashboard Frontend Modules
 

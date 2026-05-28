@@ -238,7 +238,9 @@ python run.py web --no-browser --port 8765
 **For dashboard frontend changes (`web/static/*`):**
 
 - Hard-refresh the page (Ctrl+Shift+R) to bypass cached assets
+- **Setup mode:** left card shows Environment + Design controls; right card shows Hyperparameter Lab
 - **Setup mode:** palette hides agent/bank after placement; buildings can be placed multiple times; validation message and Start Training enable/disable correctly
+- **Hyperparameter Lab:** slider/number inputs stay in sync; Reset defaults restores initial values; invalid combinations (for example epsilon end > epsilon start) block training with a visible error
 - **Training mode:** metrics, controls, chart, and heatmap appear after Start Training
 - Test at multiple viewport widths (laptop ~1366×768, ultrawide, mobile ~400px wide)
 - Verify keyboard shortcuts in training mode (`Space`, `1`–`6`, `S`, `R`, `←`/`→`)
@@ -275,6 +277,7 @@ This is a deliberate constraint — it keeps the project trivial to install, deb
 | `dom.js` | Cached `document.getElementById` references |
 | `commands.js` | Outbound WebSocket messages |
 | `websocket.js` | Connection lifecycle and inbound message handling |
+| `hyperparams.js` | Setup-time hyperparameter controls + validation |
 | `layout.js` | Layout draft helpers and validation copy |
 | `setup-editor.js` | Palette, drag-and-drop, piece placement |
 | `grid.js` | Policy heatmap canvas rendering |
