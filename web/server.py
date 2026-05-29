@@ -325,6 +325,14 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 
 
+FAVICON_PATH = os.path.join(STATIC_DIR, "favicon.ico")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> FileResponse:
+    return FileResponse(FAVICON_PATH, media_type="image/x-icon")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index() -> FileResponse:
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
