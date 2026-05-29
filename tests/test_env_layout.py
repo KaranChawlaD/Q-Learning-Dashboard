@@ -7,6 +7,7 @@ from qlearning.env import (
     GRID_COLS,
     GRID_ROWS,
     layout_is_reachable,
+    layout_shortest_path_length,
     parse_layout,
     validate_layout,
 )
@@ -49,6 +50,12 @@ def test_default_layout_is_reachable() -> None:
     assert layout_is_reachable(DEFAULT_LAYOUT)
     ok, err = validate_layout(DEFAULT_LAYOUT)
     assert ok, err
+
+
+def test_shortest_path_is_at_least_manhattan() -> None:
+    shortest = layout_shortest_path_length(DEFAULT_LAYOUT)
+    assert shortest is not None
+    assert shortest >= DEFAULT_LAYOUT.manhattan_optimum()
 
 
 def test_validate_rejects_bank_sealed_by_buildings() -> None:

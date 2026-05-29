@@ -11,7 +11,7 @@ from typing import Any
 
 import numpy as np
 
-from qlearning.env import ACTIONS, DEFAULT_LAYOUT, GridLayout
+from qlearning.env import ACTIONS, DEFAULT_LAYOUT, GridLayout, layout_shortest_path_length
 from qlearning.train import TrainConfig, env_step, greedy_path
 
 
@@ -55,7 +55,7 @@ TEST_CASES: tuple[TestCase, ...] = (
     TestCase(
         "path_length",
         "Path length at or below optimum",
-        "Greedy path step count must not exceed the unobstructed Manhattan distance.",
+        "Greedy path step count must not exceed the shortest obstacle-aware path from start to bank.",
     ),
     TestCase(
         "avoids_obstacles",
@@ -70,7 +70,7 @@ TEST_CASES: tuple[TestCase, ...] = (
     TestCase(
         "convergence",
         "Training converged (avg last 100)",
-        "Mean episode length over the last 100 episodes should be near the optimum.",
+        "Mean episode length over the last 100 episodes should be near the shortest path length.",
     ),
     TestCase(
         "learned_value",
@@ -96,16 +96,31 @@ def _check_reaches_bank(path: list[tuple[int, int]], layout: GridLayout) -> Test
 
 def _check_path_length(path: list[tuple[int, int]], layout: GridLayout) -> TestResult:
     tc = TEST_CASES[1]
-    optimum = layout.manhattan_optimum()
+    shortest = layout_shortest_path_length(layout)
+    manhattan = layout.manhattan_optimum()
     steps = len(path) - 1 if path else 0
+    if shortest is None:
+        return TestResult(
+            id=tc.id,
+            name=tc.name,
+            description=tc.description,
+            passed=False,
+            expected="A reachable path from start to bank",
+            actual="No path exists through free cells",
+            details={"manhattan_lower_bound": manhattan, "steps": steps},
+        )
     return TestResult(
         id=tc.id,
         name=tc.name,
         description=tc.description,
-        passed=steps <= optimum,
-        expected=f"<= {optimum} steps",
+        passed=steps <= shortest,
+        expected=f"<= {shortest} steps (shortest path; Manhattan lower bound {manhattan})",
         actual=f"{steps} steps",
-        details={"optimum": optimum, "steps": steps},
+        details={
+            "shortest_path": shortest,
+            "manhattan_lower_bound": manhattan,
+            "steps": steps,
+        },
     )
 
 
@@ -151,7 +166,9 @@ def _check_valid_moves(
 
 def _check_convergence(lengths: list[int], layout: GridLayout) -> TestResult:
     tc = TEST_CASES[4]
-    threshold = layout.manhattan_optimum() + 6
+    shortest = layout_shortest_path_length(layout)
+    baseline = shortest if shortest is not None else layout.manhattan_optimum()
+    threshold = baseline + 6
     if len(lengths) < 100:
         return TestResult(
             id=tc.id,

@@ -99,8 +99,8 @@ def parse_layout(
     )
 
 
-def layout_is_reachable(layout: GridLayout) -> bool:
-    """Return whether the agent can reach the bank via cardinal moves on free cells."""
+def layout_shortest_path_length(layout: GridLayout) -> int | None:
+    """Return shortest cardinal path length from start to bank, or ``None`` if unreachable."""
     blocked = layout.obstacles
 
     def walkable(col: int, row: int) -> bool:
@@ -113,21 +113,27 @@ def layout_is_reachable(layout: GridLayout) -> bool:
     start = layout.start
     goal = layout.bank
     if not walkable(*start) or not walkable(*goal):
-        return False
+        return None
 
-    queue: deque[tuple[int, int]] = deque([start])
+    queue: deque[tuple[tuple[int, int], int]] = deque([(start, 0)])
     seen = {start}
     while queue:
-        col, row = queue.popleft()
-        if (col, row) == goal:
-            return True
+        cell, dist = queue.popleft()
+        if cell == goal:
+            return dist
+        col, row = cell
         for dc, dr in ACTIONS:
             nxt = (col + dc, row + dr)
             if nxt in seen or not walkable(*nxt):
                 continue
             seen.add(nxt)
-            queue.append(nxt)
-    return False
+            queue.append((nxt, dist + 1))
+    return None
+
+
+def layout_is_reachable(layout: GridLayout) -> bool:
+    """Return whether the agent can reach the bank via cardinal moves on free cells."""
+    return layout_shortest_path_length(layout) is not None
 
 
 def validate_layout(layout: GridLayout) -> tuple[bool, str]:
