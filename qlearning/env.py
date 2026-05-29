@@ -7,6 +7,7 @@ runtime.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 
 GRID_COLS = 12
@@ -98,6 +99,37 @@ def parse_layout(
     )
 
 
+def layout_is_reachable(layout: GridLayout) -> bool:
+    """Return whether the agent can reach the bank via cardinal moves on free cells."""
+    blocked = layout.obstacles
+
+    def walkable(col: int, row: int) -> bool:
+        return (
+            0 <= col < GRID_COLS
+            and 0 <= row < GRID_ROWS
+            and (col, row) not in blocked
+        )
+
+    start = layout.start
+    goal = layout.bank
+    if not walkable(*start) or not walkable(*goal):
+        return False
+
+    queue: deque[tuple[int, int]] = deque([start])
+    seen = {start}
+    while queue:
+        col, row = queue.popleft()
+        if (col, row) == goal:
+            return True
+        for dc, dr in ACTIONS:
+            nxt = (col + dc, row + dr)
+            if nxt in seen or not walkable(*nxt):
+                continue
+            seen.add(nxt)
+            queue.append(nxt)
+    return False
+
+
 def validate_layout(layout: GridLayout) -> tuple[bool, str]:
     """Return ``(ok, error_message)`` for a proposed layout."""
     if layout.start == layout.bank:
@@ -114,5 +146,11 @@ def validate_layout(layout: GridLayout) -> tuple[bool, str]:
     max_buildings = GRID_COLS * GRID_ROWS - 2
     if len(layout.obstacles) > max_buildings:
         return False, f"At most {max_buildings} buildings fit on the grid (excluding agent and bank)."
+
+    if not layout_is_reachable(layout):
+        return (
+            False,
+            "No path from the agent to the bank — move or remove buildings so the goal is reachable.",
+        )
 
     return True, ""

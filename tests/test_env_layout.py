@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from qlearning.env import GRID_COLS, GRID_ROWS, parse_layout, validate_layout
+from qlearning.env import (
+    DEFAULT_LAYOUT,
+    GRID_COLS,
+    GRID_ROWS,
+    layout_is_reachable,
+    parse_layout,
+    validate_layout,
+)
 
 
 def test_parse_layout_empty_building_placements_list() -> None:
@@ -29,15 +36,37 @@ def test_parse_layout_multiple_same_building_sprite() -> None:
 
 
 def test_validate_allows_many_buildings() -> None:
-    obstacles = [[c, r] for c in range(GRID_COLS) for r in range(GRID_ROWS) if (c, r) not in ((0, 0), (11, 8))][
-        :20
-    ]
+    # Bands on rows 2 and 4 leave a path along the top and right edge to the bank.
+    obstacles = [[c, 2] for c in range(2, 10)] + [[c, 4] for c in range(2, 10)]
+    assert len(obstacles) == 16
     layout = parse_layout([0, 0], [11, 8], obstacles)
+    assert layout_is_reachable(layout)
     ok, err = validate_layout(layout)
     assert ok, err
 
 
-def test_validate_accepts_all_free_cells_as_buildings() -> None:
+def test_default_layout_is_reachable() -> None:
+    assert layout_is_reachable(DEFAULT_LAYOUT)
+    ok, err = validate_layout(DEFAULT_LAYOUT)
+    assert ok, err
+
+
+def test_validate_rejects_bank_sealed_by_buildings() -> None:
+    # Bank at (5, 5); buildings on all four cardinal neighbors.
+    placements = [
+        {"file": "building_1.png", "col": 4, "row": 5},
+        {"file": "building_2.png", "col": 6, "row": 5},
+        {"file": "building_3.png", "col": 5, "row": 4},
+        {"file": "building_1.png", "col": 5, "row": 6},
+    ]
+    layout = parse_layout([0, 0], [5, 5], [], building_placements=placements)
+    assert not layout_is_reachable(layout)
+    ok, err = validate_layout(layout)
+    assert not ok
+    assert "No path" in err
+
+
+def test_validate_rejects_when_every_free_cell_is_blocked() -> None:
     free_cells = [
         [c, r]
         for c in range(GRID_COLS)
@@ -46,5 +75,7 @@ def test_validate_accepts_all_free_cells_as_buildings() -> None:
     ]
     assert len(free_cells) == GRID_COLS * GRID_ROWS - 2
     layout = parse_layout([0, 0], [11, 8], free_cells)
+    assert not layout_is_reachable(layout)
     ok, err = validate_layout(layout)
-    assert ok, err
+    assert not ok
+    assert "No path" in err

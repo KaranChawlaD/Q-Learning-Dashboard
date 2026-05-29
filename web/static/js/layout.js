@@ -1,5 +1,9 @@
+import { ACTION_DELTAS } from "./constants.js";
 import { els } from "./dom.js";
 import { appState } from "./state.js";
+
+const UNREACHABLE_MSG =
+  "No path from the agent to the bank — move or remove buildings so the goal is reachable.";
 
 /** Ensure layout draft buildings are always a list (handles stale session shapes). */
 export function normalizeBuildingsDraft() {
@@ -63,6 +67,44 @@ export function pieceAtCell(col, row) {
   return null;
 }
 
+/** BFS on free cells; mirrors :func:`qlearning.env.layout_is_reachable`. */
+export function isDraftLayoutReachable() {
+  const { layoutDraft } = appState;
+  if (!layoutDraft.start || !layoutDraft.bank) return false;
+
+  const cols = appState.config?.gridCols ?? 12;
+  const rows = appState.config?.gridRows ?? 9;
+  const blocked = new Set(
+    normalizeBuildingsDraft().map((b) => `${b.col},${b.row}`),
+  );
+
+  const walkable = (col, row) =>
+    col >= 0 && row >= 0 && col < cols && row < rows && !blocked.has(`${col},${row}`);
+
+  const start = layoutDraft.start;
+  const goal = layoutDraft.bank;
+  if (!walkable(start[0], start[1]) || !walkable(goal[0], goal[1])) {
+    return false;
+  }
+
+  const queue = [[start[0], start[1]]];
+  const seen = new Set([`${start[0]},${start[1]}`]);
+
+  while (queue.length > 0) {
+    const [col, row] = queue.shift();
+    if (col === goal[0] && row === goal[1]) return true;
+    for (const [dc, dr] of ACTION_DELTAS) {
+      const nc = col + dc;
+      const nr = row + dr;
+      const key = `${nc},${nr}`;
+      if (seen.has(key) || !walkable(nc, nr)) continue;
+      seen.add(key);
+      queue.push([nc, nr]);
+    }
+  }
+  return false;
+}
+
 export function clearCell(col, row) {
   const { layoutDraft } = appState;
   if (layoutDraft.start && layoutDraft.start[0] === col && layoutDraft.start[1] === row) {
@@ -77,13 +119,18 @@ export function clearCell(col, row) {
 export function updateSetupValidation(message) {
   const hasAgent = appState.layoutDraft.start !== null;
   const hasBank = appState.layoutDraft.bank !== null;
-  const ready = hasAgent && hasBank;
+  const reachable = hasAgent && hasBank && isDraftLayoutReachable();
+  const ready = reachable;
 
   if (message) {
     els.setupValidation.textContent = message;
-    els.setupValidation.classList.toggle("is-error", !ready);
-    els.setupValidation.classList.toggle("is-ready", ready);
-  } else if (!hasAgent && !hasBank) {
+    els.setupValidation.classList.add("is-error");
+    els.setupValidation.classList.remove("is-ready");
+    els.startTrainingBtn.disabled = true;
+    return;
+  }
+
+  if (!hasAgent && !hasBank) {
     els.setupValidation.textContent = "Place an agent and bank on the grid to begin.";
     els.setupValidation.classList.remove("is-error", "is-ready");
   } else if (!hasAgent) {
@@ -92,6 +139,10 @@ export function updateSetupValidation(message) {
     els.setupValidation.classList.remove("is-ready");
   } else if (!hasBank) {
     els.setupValidation.textContent = "Add a bank (goal) to the grid.";
+    els.setupValidation.classList.add("is-error");
+    els.setupValidation.classList.remove("is-ready");
+  } else if (!isDraftLayoutReachable()) {
+    els.setupValidation.textContent = UNREACHABLE_MSG;
     els.setupValidation.classList.add("is-error");
     els.setupValidation.classList.remove("is-ready");
   } else {
