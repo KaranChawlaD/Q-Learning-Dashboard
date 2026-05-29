@@ -240,6 +240,7 @@ python run.py web --no-browser --port 8765
 - Hard-refresh the page (Ctrl+Shift+R) to bypass cached assets
 - **Setup mode:** left card shows Environment + Design controls; right card shows Hyperparameter Lab
 - **Setup mode:** palette hides agent/bank after placement; each building type can be placed multiple times; validation message and Start Training enable/disable correctly
+- **Setup mode:** unsolvable layouts (no start→bank path through free cells) show an error and keep Start Training disabled
 - **Hyperparameter Lab:** slider/number inputs stay in sync; Reset defaults restores initial values; invalid combinations (for example epsilon end > epsilon start) block training with a visible error
 - **Training mode:** metrics, controls, chart, and heatmap appear after Start Training
 - Test at multiple viewport widths (laptop ~1366×768, ultrawide, mobile ~400px wide)
@@ -253,6 +254,7 @@ When adding or moving frontend logic, keep modules small and update the table in
 
 - Run `python run.py train` on the **default layout** and verify the greedy path is still **19 steps** (`seed=42`)
 - Verify the 100-episode average length converges to roughly **20** steps on the default map
+- If you change layout validation, include at least one test proving solvable layouts pass and unsolvable layouts fail
 - If you change `TrainConfig` defaults, justify it in the PR — the existing values are tuned for the default map
 - Run `pytest -q`; add or update tests when behavior changes
 

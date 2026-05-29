@@ -39,8 +39,9 @@ Q-Learning/
 │   ├── train.py           # tabular Q-learning algorithm + headless CLI
 │   ├── evaluate.py        # post-training model checks for the dashboard
 │   └── manual.py          # pygame manual-control mode
-├── tests/                 # pytest suite (evaluate + training regressions)
-│   └── test_evaluate.py
+├── tests/                 # pytest suite (evaluate + env/layout regressions)
+│   ├── test_evaluate.py
+│   └── test_env_layout.py
 ├── web/                   # browser dashboard
 │   ├── server.py          # FastAPI + WebSocket service (with CLI main())
 │   └── static/            # vanilla HTML/CSS/JS, no build step
@@ -66,7 +67,7 @@ Q-Learning/
 
 The grid is always **12 × 9** with **4 actions** (up, down, left, right). Out-of-bounds and obstacle moves leave the agent in place.
 
-**Web dashboard** — you choose the layout before training: one agent (start), one bank (goal), and any number of buildings (multiple of each building type allowed). Layouts are validated server-side (no overlaps, in-bounds cells, agent and bank required).
+**Web dashboard** — you choose the layout before training: one agent (start), one bank (goal), and any number of buildings (multiple of each building type allowed). Layouts are validated server-side (no overlaps, in-bounds cells, agent and bank required), and training is blocked when no path exists from start to bank.
 
 **CLI `train` and `manual` modes** — use the default layout in `qlearning/env.py`:
 
@@ -89,7 +90,7 @@ What you see after training starts:
 - **Policy heatmap** — plasma gradient of `V(s) = max_a Q(s, a)` per tile, with white triangular arrows showing the greedy action and a cyan focus ring on the agent's current cell. A gradient legend below reports the current `V min` / `V max` mapping.
 - **Metrics** — Episode, Epsilon (cyan), Last episode length, Avg of last 100 episodes (amber).
 - **Controls** — clickable Pause / Save / Edit environment buttons plus a 6-segment training-speed selector (1, 5, 25, 100, 500, 2000 steps per frame). The active level is highlighted.
-- **Steps-per-episode chart** — cyan per-episode line + amber 50-episode moving average. Subtitle turns emerald when the 100-episode average is near the layout's Manhattan optimum.
+- **Steps-per-episode chart** — cyan per-episode line + amber 50-episode moving average. Subtitle turns emerald when the 100-episode average is near the layout's shortest obstacle-aware path.
 - **Model tests** (after training completes) — LeetCode-style expandable cases (greedy path reaches bank, path length, obstacle avoidance, convergence, etc.) with expected vs actual details.
 
 Server options:
@@ -112,7 +113,7 @@ Keyboard shortcuts (browser tab focused, **training mode only**):
 | `S` | Save the current Q-table to `assets/` |
 | `R` | Return to the environment editor |
 
-**Setup mode:** drag agent, bank, and buildings from the Design Environment panel onto the grid (building palette items stay available so you can place multiple of each type); right-click a cell to clear it; drag an on-grid piece to move it. Adjust Hyperparameter Lab inputs before starting training (includes a one-click reset to defaults).
+**Setup mode:** drag agent, bank, and buildings from the Design Environment panel onto the grid (building palette items stay available so you can place multiple of each type); right-click a cell to clear it; drag an on-grid piece to move it. Adjust Hyperparameter Lab inputs before starting training (includes a one-click reset to defaults). The **Start Training** button is disabled until the layout is solvable (agent can reach bank via cardinal moves).
 
 The dashboard auto-reconnects if the server restarts.
 
@@ -165,6 +166,13 @@ Settings live in `pyproject.toml` (`[tool.ruff]`).
 - Optional “load default layout” preset in the environment editor
 
 ## Version History
+
+### v0.9.1 - Layout Reachability + Obstacle-Aware Optimum
+
+- Added server + setup-mode validation that blocks training when no path exists from the agent to the bank
+- Added support for placing multiple copies of each building sprite while preserving per-cell sprite assignment
+- Hardened dashboard start flow against stale layout state from older sessions
+- Updated model checks to compare greedy path length against shortest obstacle-aware path (BFS) instead of unobstructed Manhattan distance
 
 ### v0.9.0 - Hyperparameter Lab + Setup Layout Refresh
 
