@@ -346,9 +346,12 @@ def _handle_command(msg: dict) -> dict[str, Any] | None:
                 msg["start"],
                 msg["bank"],
                 msg.get("obstacles", []),
+                building_placements=msg.get("building_placements"),
             )
-        except (KeyError, TypeError, ValueError, IndexError):
-            return {"type": "error", "message": "Invalid layout payload."}
+        except (KeyError, TypeError, ValueError, IndexError) as exc:
+            detail = str(exc).strip()
+            message = detail if detail else "Invalid layout payload."
+            return {"type": "error", "message": message}
         ok, err = trainer.start_training(layout, msg.get("train_config"))
         if not ok:
             return {"type": "error", "message": err}

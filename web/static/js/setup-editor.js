@@ -3,11 +3,17 @@ import { canvasCellFromEvent } from "./canvas.js";
 import { els } from "./dom.js";
 import {
   clearCell,
+  normalizeBuildingsDraft,
   pieceAtCell,
   updateSetupValidation,
 } from "./layout.js";
 import { requestRender } from "./render-loop.js";
 import { appState } from "./state.js";
+
+function nextBuildingId() {
+  appState.nextBuildingId += 1;
+  return `building-${appState.nextBuildingId}`;
+}
 
 export function visiblePaletteItems() {
   return PALETTE_ITEMS.filter((item) => {
@@ -49,9 +55,10 @@ export function buildPalette() {
   refreshPalette();
 }
 
-export function placePiece(kind, file, col, row) {
+export function placePiece(kind, file, col, row, buildingId = null) {
   clearCell(col, row);
   const { layoutDraft } = appState;
+  normalizeBuildingsDraft();
   if (kind === "agent") {
     if (layoutDraft.start) clearCell(layoutDraft.start[0], layoutDraft.start[1]);
     layoutDraft.start = [col, row];
@@ -59,20 +66,37 @@ export function placePiece(kind, file, col, row) {
     if (layoutDraft.bank) clearCell(layoutDraft.bank[0], layoutDraft.bank[1]);
     layoutDraft.bank = [col, row];
   } else if (kind === "building" && file) {
-    const old = layoutDraft.buildings[file];
-    if (old) clearCell(old[0], old[1]);
-    layoutDraft.buildings[file] = [col, row];
+    if (buildingId) {
+      const existing = layoutDraft.buildings.find((b) => b.id === buildingId);
+      if (existing) {
+        existing.col = col;
+        existing.row = row;
+        existing.file = file;
+      } else {
+        layoutDraft.buildings.push({ id: buildingId, file, col, row });
+      }
+    } else {
+      layoutDraft.buildings.push({ id: nextBuildingId(), file, col, row });
+    }
   }
   updateSetupValidation();
   refreshPalette();
   requestRender();
 }
 
-export function removePiece(kind, file) {
+export function removePiece(kind, file, buildingId = null) {
   const { layoutDraft } = appState;
+  normalizeBuildingsDraft();
   if (kind === "agent") layoutDraft.start = null;
   else if (kind === "bank") layoutDraft.bank = null;
-  else if (kind === "building" && file) delete layoutDraft.buildings[file];
+  else if (kind === "building") {
+    if (buildingId) {
+      layoutDraft.buildings = layoutDraft.buildings.filter((b) => b.id !== buildingId);
+    } else if (file) {
+      const idx = layoutDraft.buildings.findIndex((b) => b.file === file);
+      if (idx !== -1) layoutDraft.buildings.splice(idx, 1);
+    }
+  }
   updateSetupValidation();
   refreshPalette();
   requestRender();
@@ -105,6 +129,7 @@ function beginDrag(event, item) {
   appState.dragState = {
     kind: item.kind,
     file: item.kind === "building" ? item.sprite : null,
+    buildingId: null,
     fromGrid: false,
     hoverCell: null,
   };
@@ -136,10 +161,11 @@ function onPointerUp(event) {
     appState.config?.gridRows ?? 0,
   );
   if (cell && appState.uiMode === "setup") {
-    if (event.altKey && appState.dragState.fromGrid) {
-      removePiece(appState.dragState.kind, appState.dragState.file);
+    const { kind, file, buildingId, fromGrid } = appState.dragState;
+    if (event.altKey && fromGrid) {
+      removePiece(kind, file, buildingId);
     } else {
-      placePiece(appState.dragState.kind, appState.dragState.file, cell[0], cell[1]);
+      placePiece(kind, file, cell[0], cell[1], fromGrid ? buildingId : null);
     }
   }
   appState.dragState = null;
@@ -162,6 +188,7 @@ export function onGridPointerDown(event) {
   appState.dragState = {
     kind: piece.kind,
     file: piece.file || null,
+    buildingId: piece.id || null,
     fromGrid: true,
     hoverCell: cell,
   };

@@ -1,15 +1,37 @@
 import { els } from "./dom.js";
 import { appState } from "./state.js";
 
+/** Ensure layout draft buildings are always a list (handles stale session shapes). */
+export function normalizeBuildingsDraft() {
+  const { layoutDraft } = appState;
+  if (!Array.isArray(layoutDraft.buildings)) {
+    const legacy = layoutDraft.buildings;
+    layoutDraft.buildings = legacy && typeof legacy === "object"
+      ? Object.entries(legacy)
+          .filter(([, pos]) => Array.isArray(pos) && pos.length >= 2)
+          .map(([file, pos], index) => ({
+            id: `building-legacy-${index}`,
+            file,
+            col: pos[0],
+            row: pos[1],
+          }))
+      : [];
+  }
+  return layoutDraft.buildings;
+}
+
 export function draftEnvSnapshot() {
-  const obstacles = Object.entries(appState.layoutDraft.buildings)
-    .filter(([, pos]) => pos)
-    .map(([file, pos]) => ({ file, col: pos[0], row: pos[1] }));
+  const { layoutDraft } = appState;
+  const buildings = normalizeBuildingsDraft().map((b) => ({
+    file: b.file,
+    col: b.col,
+    row: b.row,
+  }));
   return {
-    start: appState.layoutDraft.start,
-    bank: appState.layoutDraft.bank,
-    obstacles: obstacles.map((b) => [b.col, b.row]),
-    buildings: obstacles,
+    start: layoutDraft.start,
+    bank: layoutDraft.bank,
+    obstacles: buildings.map((b) => [b.col, b.row]),
+    buildings,
   };
 }
 
@@ -34,10 +56,9 @@ export function pieceAtCell(col, row) {
   if (layoutDraft.bank && layoutDraft.bank[0] === col && layoutDraft.bank[1] === row) {
     return { kind: "bank" };
   }
-  for (const [file, pos] of Object.entries(layoutDraft.buildings)) {
-    if (pos && pos[0] === col && pos[1] === row) {
-      return { kind: "building", file };
-    }
+  const building = normalizeBuildingsDraft().find((b) => b.col === col && b.row === row);
+  if (building) {
+    return { kind: "building", file: building.file, id: building.id };
   }
   return null;
 }
@@ -50,12 +71,7 @@ export function clearCell(col, row) {
   if (layoutDraft.bank && layoutDraft.bank[0] === col && layoutDraft.bank[1] === row) {
     layoutDraft.bank = null;
   }
-  for (const file of Object.keys(layoutDraft.buildings)) {
-    const pos = layoutDraft.buildings[file];
-    if (pos && pos[0] === col && pos[1] === row) {
-      delete layoutDraft.buildings[file];
-    }
-  }
+  layoutDraft.buildings = normalizeBuildingsDraft().filter((b) => b.col !== col || b.row !== row);
 }
 
 export function updateSetupValidation(message) {

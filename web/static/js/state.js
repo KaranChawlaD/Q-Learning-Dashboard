@@ -14,7 +14,9 @@ export const appState = {
   layoutDraft: {
     start: null,
     bank: null,
-    buildings: {},
+    /** @type {{ id: string, file: string, col: number, row: number }[]} */
+    buildings: [],
   },
+  nextBuildingId: 0,
   dragState: null,
 };

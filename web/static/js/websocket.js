@@ -6,37 +6,59 @@ import {
   readHyperparameterPayload,
   setHyperparameterError,
 } from "./hyperparams.js";
-import { applyDisplayEnv, updateSetupValidation } from "./layout.js";
+import { applyDisplayEnv, normalizeBuildingsDraft, updateSetupValidation } from "./layout.js";
 import { buildPalette, refreshPalette } from "./setup-editor.js";
 import { loadAllSprites } from "./sprites.js";
 import { requestRender, setConnectionState, setPanelMode } from "./ui.js";
 import { appState } from "./state.js";
 
+function resetStartTrainingButton() {
+  els.startTrainingBtn.disabled = false;
+  els.startTrainingBtn.textContent = "Start Training";
+}
+
 export function startTrainingFromDraft() {
-  const { layoutDraft } = appState;
-  if (!layoutDraft.start || !layoutDraft.bank) {
-    updateSetupValidation("Place an agent and bank on the grid before training.");
-    return;
+  try {
+    const { layoutDraft } = appState;
+    if (!layoutDraft.start || !layoutDraft.bank) {
+      updateSetupValidation("Place an agent and bank on the grid before training.");
+      return;
+    }
+    if (!appState.socket || appState.socket.readyState !== WebSocket.OPEN) {
+      updateSetupValidation("Not connected to the server — wait for the connection indicator.");
+      return;
+    }
+    const buildingPlacements = normalizeBuildingsDraft().map((b) => ({
+      file: b.file,
+      col: b.col,
+      row: b.row,
+    }));
+    const hp = readHyperparameterPayload();
+    if (!hp.ok) {
+      const message = hp.message || "Invalid hyperparameters.";
+      setHyperparameterError(message);
+      updateSetupValidation(message);
+      return;
+    }
+    els.startTrainingBtn.disabled = true;
+    els.startTrainingBtn.textContent = "Starting…";
+    const sent = sendCommand({
+      type: "start_training",
+      start: layoutDraft.start,
+      bank: layoutDraft.bank,
+      obstacles: buildingPlacements.map((b) => [b.col, b.row]),
+      building_placements: buildingPlacements,
+      train_config: hp.payload,
+    });
+    if (!sent) {
+      resetStartTrainingButton();
+      updateSetupValidation("Not connected to the server — wait for the connection indicator.");
+    }
+  } catch (err) {
+    console.error("[start_training]", err);
+    resetStartTrainingButton();
+    updateSetupValidation("Could not start training — refresh the page and try again.");
   }
-  if (!appState.socket || appState.socket.readyState !== WebSocket.OPEN) {
-    updateSetupValidation("Not connected to the server — wait for the connection indicator.");
-    return;
-  }
-  const obstacles = Object.values(layoutDraft.buildings).filter(Boolean);
-  const hp = readHyperparameterPayload();
-  if (!hp.ok) {
-    setHyperparameterError(hp.message || "Invalid hyperparameters.");
-    return;
-  }
-  els.startTrainingBtn.disabled = true;
-  els.startTrainingBtn.textContent = "Starting…";
-  sendCommand({
-    type: "start_training",
-    start: layoutDraft.start,
-    bank: layoutDraft.bank,
-    obstacles,
-    train_config: hp.payload,
-  });
 }
 
 export function connect() {
@@ -58,6 +80,7 @@ export function connect() {
     }
     if (msg.type === "init") {
       appState.config = msg.config;
+      normalizeBuildingsDraft();
       await loadAllSprites();
       buildPalette();
       bindHyperparameterLab();
@@ -66,8 +89,7 @@ export function connect() {
       updateSetupValidation();
       requestRender();
     } else if (msg.type === "error") {
-      els.startTrainingBtn.disabled = false;
-      els.startTrainingBtn.textContent = "Start Training";
+      resetStartTrainingButton();
       updateSetupValidation(msg.message || "Could not start training.");
     } else if (msg.type === "state") {
       appState.lastState = msg.data;

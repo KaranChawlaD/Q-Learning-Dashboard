@@ -66,7 +66,7 @@ Q-Learning/
 
 The grid is always **12 × 9** with **4 actions** (up, down, left, right). Out-of-bounds and obstacle moves leave the agent in place.
 
-**Web dashboard** — you choose the layout before training: one agent (start), one bank (goal), and any number of buildings. Layouts are validated server-side (no overlaps, in-bounds cells, agent and bank required).
+**Web dashboard** — you choose the layout before training: one agent (start), one bank (goal), and any number of buildings (multiple of each building type allowed). Layouts are validated server-side (no overlaps, in-bounds cells, agent and bank required).
 
 **CLI `train` and `manual` modes** — use the default layout in `qlearning/env.py`:
 
@@ -112,7 +112,7 @@ Keyboard shortcuts (browser tab focused, **training mode only**):
 | `S` | Save the current Q-table to `assets/` |
 | `R` | Return to the environment editor |
 
-**Setup mode:** drag agent, bank, and buildings from the Design Environment panel onto the grid; right-click a cell to clear it; drag an on-grid piece to move it. Adjust Hyperparameter Lab inputs before starting training (includes a one-click reset to defaults).
+**Setup mode:** drag agent, bank, and buildings from the Design Environment panel onto the grid (building palette items stay available so you can place multiple of each type); right-click a cell to clear it; drag an on-grid piece to move it. Adjust Hyperparameter Lab inputs before starting training (includes a one-click reset to defaults).
 
 The dashboard auto-reconnects if the server restarts.
 

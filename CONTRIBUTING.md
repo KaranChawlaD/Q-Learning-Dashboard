@@ -239,7 +239,7 @@ python run.py web --no-browser --port 8765
 
 - Hard-refresh the page (Ctrl+Shift+R) to bypass cached assets
 - **Setup mode:** left card shows Environment + Design controls; right card shows Hyperparameter Lab
-- **Setup mode:** palette hides agent/bank after placement; buildings can be placed multiple times; validation message and Start Training enable/disable correctly
+- **Setup mode:** palette hides agent/bank after placement; each building type can be placed multiple times; validation message and Start Training enable/disable correctly
 - **Hyperparameter Lab:** slider/number inputs stay in sync; Reset defaults restores initial values; invalid combinations (for example epsilon end > epsilon start) block training with a visible error
 - **Training mode:** metrics, controls, chart, and heatmap appear after Start Training
 - Test at multiple viewport widths (laptop ~1366×768, ultrawide, mobile ~400px wide)

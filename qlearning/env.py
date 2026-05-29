@@ -39,12 +39,19 @@ class GridLayout:
     start: tuple[int, int]
     bank: tuple[int, int]
     obstacles: frozenset[tuple[int, int]]
+    # (col, row, sprite filename) when the dashboard assigns a sprite per obstacle.
+    building_sprites: tuple[tuple[int, int, str], ...] = ()
 
     def manhattan_optimum(self) -> int:
         return abs(self.bank[0] - self.start[0]) + abs(self.bank[1] - self.start[1])
 
     def buildings(self) -> list[dict[str, object]]:
-        """Map obstacles to building sprites in stable sorted order."""
+        """Obstacle cells with sprite filenames for rendering."""
+        if self.building_sprites:
+            return [
+                {"file": file, "col": col, "row": row}
+                for col, row, file in sorted(self.building_sprites, key=lambda t: (t[1], t[0]))
+            ]
         out: list[dict[str, object]] = []
         for i, cell in enumerate(sorted(self.obstacles)):
             file = BUILDING_FILES[i % len(BUILDING_FILES)]
@@ -59,12 +66,34 @@ def parse_layout(
     start: list[int] | tuple[int, int],
     bank: list[int] | tuple[int, int],
     obstacles: list[list[int]] | list[tuple[int, int]],
+    *,
+    building_placements: list[dict[str, object]] | None = None,
 ) -> GridLayout:
     """Build a :class:`GridLayout` from JSON-friendly coordinate lists."""
+    start_cell = (int(start[0]), int(start[1]))
+    bank_cell = (int(bank[0]), int(bank[1]))
+
+    if building_placements is not None:
+        sprites: list[tuple[int, int, str]] = []
+        for raw in building_placements:
+            col = int(raw["col"])  # type: ignore[arg-type]
+            row = int(raw["row"])  # type: ignore[arg-type]
+            file = str(raw["file"])
+            if file not in BUILDING_FILES:
+                raise ValueError(f"Unknown building sprite: {file!r}")
+            sprites.append((col, row, file))
+        obs = frozenset((c, r) for c, r, _ in sprites)
+        return GridLayout(
+            start=start_cell,
+            bank=bank_cell,
+            obstacles=obs,
+            building_sprites=tuple(sorted(sprites, key=lambda t: (t[1], t[0]))),
+        )
+
     obs = frozenset((int(c), int(r)) for c, r in obstacles)
     return GridLayout(
-        start=(int(start[0]), int(start[1])),
-        bank=(int(bank[0]), int(bank[1])),
+        start=start_cell,
+        bank=bank_cell,
         obstacles=obs,
     )
 
@@ -82,7 +111,8 @@ def validate_layout(layout: GridLayout) -> tuple[bool, str]:
         if not (0 <= col < GRID_COLS and 0 <= row < GRID_ROWS):
             return False, f"Cell ({col}, {row}) is outside the {GRID_COLS}×{GRID_ROWS} grid."
 
-    if len(layout.obstacles) > len(BUILDING_FILES):
-        return False, f"At most {len(BUILDING_FILES)} buildings are supported."
+    max_buildings = GRID_COLS * GRID_ROWS - 2
+    if len(layout.obstacles) > max_buildings:
+        return False, f"At most {max_buildings} buildings fit on the grid (excluding agent and bank)."
 
     return True, ""
