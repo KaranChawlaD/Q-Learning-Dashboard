@@ -108,6 +108,9 @@ export function updateUi(trainingState) {
   for (const btn of els.speedButtons.querySelectorAll("button")) {
     btn.classList.toggle("active", Number(btn.dataset.idx) === trainingState.speedIdx);
   }
+
+  els.exportRunBtn.disabled = !trainingState.canExport;
+  els.exportRunBtn.setAttribute("aria-disabled", trainingState.canExport ? "false" : "true");
 }
 
 setUpdateUi(updateUi);

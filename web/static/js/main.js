@@ -6,6 +6,7 @@ import {
   onGridContextMenu,
   onGridPointerDown,
 } from "./setup-editor.js";
+import { requestRunExport } from "./export.js";
 import { requestRender } from "./ui.js";
 import { sendCommand } from "./commands.js";
 import { connect, startTrainingFromDraft } from "./websocket.js";
@@ -14,7 +15,12 @@ import { appState } from "./state.js";
 function bindControls() {
   document.querySelectorAll("[data-cmd]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      sendCommand({ type: btn.dataset.cmd });
+      const cmd = btn.dataset.cmd;
+      if (cmd === "export") {
+        requestRunExport(sendCommand);
+        return;
+      }
+      sendCommand({ type: cmd });
     });
   });
 
@@ -29,7 +35,11 @@ function bindControls() {
       event.preventDefault();
       sendCommand({ type: "toggle" });
     } else if (event.key === "s" || event.key === "S") {
-      sendCommand({ type: "save" });
+      if (!appState.config?.production) {
+        sendCommand({ type: "save" });
+      }
+    } else if (event.key === "e" || event.key === "E") {
+      requestRunExport(sendCommand);
     } else if (event.key === "r" || event.key === "R") {
       sendCommand({ type: "reset" });
     } else if (event.key >= "1" && event.key <= "6") {

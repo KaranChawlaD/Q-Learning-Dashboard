@@ -1,5 +1,6 @@
 import { sendCommand } from "./commands.js";
 import { els } from "./dom.js";
+import { downloadRunExport, requestRunExport } from "./export.js";
 import {
   applyHyperparameterDefaults,
   bindHyperparameterLab,
@@ -85,12 +86,22 @@ export function connect() {
       buildPalette();
       bindHyperparameterLab();
       applyHyperparameterDefaults(msg.config.trainConfig);
+      if (msg.config.production) {
+        els.saveServerBtn.classList.add("hidden");
+        els.saveServerBtn.setAttribute("aria-hidden", "true");
+      } else {
+        els.saveServerBtn.classList.remove("hidden");
+        els.saveServerBtn.setAttribute("aria-hidden", "false");
+        els.saveServerLabel.textContent = "Save Q-table to assets/";
+      }
       setPanelMode("setup");
       updateSetupValidation();
       requestRender();
     } else if (msg.type === "error") {
       resetStartTrainingButton();
       updateSetupValidation(msg.message || "Could not start training.");
+    } else if (msg.type === "export") {
+      downloadRunExport(msg.data);
     } else if (msg.type === "state") {
       appState.lastState = msg.data;
       if (appState.lastState.mode === "setup") {
@@ -99,9 +110,12 @@ export function connect() {
         refreshPalette();
         updateSetupValidation();
         requestRender();
-      } else if (appState.config) {
+      } else       if (appState.config) {
         setPanelMode("training");
         applyDisplayEnv(appState.lastState.env);
+        const canExport = appState.lastState.canExport;
+        els.exportRunBtn.disabled = !canExport;
+        els.exportRunBtn.setAttribute("aria-disabled", canExport ? "false" : "true");
         requestRender();
       }
     }
