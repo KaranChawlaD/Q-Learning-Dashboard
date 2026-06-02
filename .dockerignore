@@ -1,0 +1,12 @@
+.git
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+assets/q_table.npy
+assets/q_meta.json
+.DS_Store
+Thumbs.db
