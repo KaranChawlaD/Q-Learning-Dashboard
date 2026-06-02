@@ -2,6 +2,8 @@
 
 Reuses qlearning.train for the env and Q-learning update so artifacts written
 by this dashboard match ``python run.py train`` under the same seed and layout.
+
+Each browser session gets an isolated :class:`Trainer` keyed by an HttpOnly cookie.
 """
 
 from __future__ import annotations
@@ -11,14 +13,18 @@ import asyncio
 import json
 import os
 import random
+import secrets
+import time
 import webbrowser
 from contextlib import asynccontextmanager, suppress
+from dataclasses import asdict
+from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from qlearning.env import (
@@ -43,7 +49,15 @@ from qlearning.train import (
 SPEED_LEVELS = (1, 5, 25, 100, 500, 2000)
 TICK_INTERVAL_S = 0.05
 SNAPSHOT_INTERVAL_S = 0.08
+CLEANUP_INTERVAL_S = 300.0
+IDLE_SESSION_S = 1800.0
 DIRECTION_FOR_ACTION = ("up", "down", "left", "right")
+SESSION_COOKIE = "ql_session"
+SESSION_MAX_AGE_S = 60 * 60 * 24
+
+
+def is_production() -> bool:
+    return os.environ.get("QLEARNING_ENV", "").lower() == "production"
 
 
 def _parse_train_config(raw: dict[str, Any] | None, base: TrainConfig) -> TrainConfig:
@@ -94,7 +108,7 @@ def _parse_train_config(raw: dict[str, Any] | None, base: TrainConfig) -> TrainC
 
 
 class Trainer:
-    """Single-source-of-truth training state, mutated only on the asyncio loop."""
+    """Per-session training state, mutated only on the asyncio loop."""
 
     def __init__(self) -> None:
         self.cfg = TrainConfig()
@@ -148,7 +162,7 @@ class Trainer:
             if self.ep >= cfg.episodes:
                 self.finished = True
                 if not self._artifacts_saved:
-                    save_artifacts(self.q, cfg, greedy_path(self.q, layout), layout)
+                    self._persist_artifacts()
                     self._artifacts_saved = True
                 return
             eps_v = epsilon_for(self.ep, cfg)
@@ -167,6 +181,11 @@ class Trainer:
                 self.ep += 1
                 self.cell = layout.start
                 self.steps_in_ep = 0
+
+    def _persist_artifacts(self) -> None:
+        if self.layout is None or is_production():
+            return
+        save_artifacts(self.q, self.cfg, greedy_path(self.q, self.layout), self.layout)
 
     def restart_training(self) -> None:
         """Re-run training on the current layout without returning to setup."""
@@ -197,7 +216,7 @@ class Trainer:
 
     def save_now(self) -> None:
         if self.layout is not None:
-            save_artifacts(self.q, self.cfg, greedy_path(self.q, self.layout), self.layout)
+            self._persist_artifacts()
 
     def _layout_dict(self) -> dict[str, Any] | None:
         if self.layout is None:
@@ -207,6 +226,42 @@ class Trainer:
             "bank": list(self.layout.bank),
             "obstacles": [list(c) for c in sorted(self.layout.obstacles)],
             "buildings": self.layout.buildings(),
+        }
+
+    def _building_placements(self) -> list[dict[str, object]]:
+        if self.layout is None:
+            return []
+        return self.layout.buildings()
+
+    def export_run(self) -> dict[str, Any] | None:
+        if self.layout is None:
+            return None
+        path = greedy_path(self.q, self.layout)
+        model_tests = None
+        if self.finished:
+            model_tests = run_model_tests(
+                self.q,
+                self.cfg,
+                self.lengths,
+                self.layout,
+                max_steps=self.cfg.max_steps,
+            )
+        return {
+            "version": 1,
+            "exported_at": datetime.now(UTC).isoformat(),
+            "grid_cols": GRID_COLS,
+            "grid_rows": GRID_ROWS,
+            "actions": list(ACTION_NAMES),
+            "layout": self._layout_dict(),
+            "building_placements": self._building_placements(),
+            "config": asdict(self.cfg),
+            "lengths": list(self.lengths),
+            "q_table": self.q.tolist(),
+            "greedy_path": [list(c) for c in path],
+            "greedy_path_length": len(path) - 1,
+            "model_tests": model_tests,
+            "finished": self.finished,
+            "ep": self.ep,
         }
 
     def snapshot(self) -> dict[str, Any]:
@@ -269,6 +324,7 @@ class Trainer:
             },
             "lengths": list(self.lengths),
             "modelTests": model_tests,
+            "canExport": self.layout is not None and self.mode == "training",
         }
 
     def static_config(self) -> dict[str, Any]:
@@ -277,6 +333,7 @@ class Trainer:
             "gridRows": GRID_ROWS,
             "actions": list(ACTION_NAMES),
             "buildingFiles": ["building_1.png", "building_2.png", "building_3.png"],
+            "production": is_production(),
             "trainConfig": {
                 "alpha": self.cfg.alpha,
                 "gamma": self.cfg.gamma,
@@ -291,16 +348,80 @@ class Trainer:
         }
 
 
-trainer = Trainer()
+class SessionManager:
+    """Maps browser session ids to isolated trainers."""
+
+    def __init__(self) -> None:
+        self._trainers: dict[str, Trainer] = {}
+        self._last_seen: dict[str, float] = {}
+
+    def touch(self, session_id: str) -> Trainer:
+        self._last_seen[session_id] = time.monotonic()
+        if session_id not in self._trainers:
+            self._trainers[session_id] = Trainer()
+        return self._trainers[session_id]
+
+    def step_all(self) -> None:
+        for trainer in self._trainers.values():
+            try:
+                trainer.step_batch(trainer.speed)
+            except Exception as exc:
+                print(f"[trainer] error: {exc!r}")
+
+    def cleanup_idle(self) -> None:
+        now = time.monotonic()
+        stale = [
+            session_id
+            for session_id, seen_at in self._last_seen.items()
+            if now - seen_at > IDLE_SESSION_S
+        ]
+        for session_id in stale:
+            self._trainers.pop(session_id, None)
+            self._last_seen.pop(session_id, None)
+        if stale:
+            print(f"[sessions] removed {len(stale)} idle session(s)")
+
+
+sessions = SessionManager()
+
+
+def new_session_id() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def session_id_from_request(request: Request) -> tuple[str, bool]:
+    existing = request.cookies.get(SESSION_COOKIE)
+    if existing:
+        return existing, False
+    return new_session_id(), True
+
+
+def session_id_from_websocket(websocket: WebSocket) -> str:
+    existing = websocket.cookies.get(SESSION_COOKIE)
+    return existing if existing else new_session_id()
+
+
+def set_session_cookie(response: Response, session_id: str) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        session_id,
+        max_age=SESSION_MAX_AGE_S,
+        httponly=True,
+        samesite="lax",
+        secure=is_production(),
+    )
 
 
 async def trainer_loop() -> None:
+    ticks_since_cleanup = 0
+    cleanup_every = int(CLEANUP_INTERVAL_S / TICK_INTERVAL_S)
     while True:
         await asyncio.sleep(TICK_INTERVAL_S)
-        try:
-            trainer.step_batch(trainer.speed)
-        except Exception as exc:
-            print(f"[trainer] error: {exc!r}")
+        sessions.step_all()
+        ticks_since_cleanup += 1
+        if ticks_since_cleanup >= cleanup_every:
+            sessions.cleanup_idle()
+            ticks_since_cleanup = 0
 
 
 @asynccontextmanager
@@ -334,11 +455,16 @@ async def favicon() -> FileResponse:
 
 
 @app.get("/", response_class=HTMLResponse)
-async def index() -> FileResponse:
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+async def index(request: Request) -> FileResponse:
+    session_id, is_new = session_id_from_request(request)
+    sessions.touch(session_id)
+    response = FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    if is_new:
+        set_session_cookie(response, session_id)
+    return response
 
 
-def _handle_command(msg: dict) -> dict[str, Any] | None:
+def _handle_command(trainer: Trainer, msg: dict) -> dict[str, Any] | None:
     cmd = msg.get("type")
     if cmd == "start_training":
         try:
@@ -356,6 +482,11 @@ def _handle_command(msg: dict) -> dict[str, Any] | None:
         if not ok:
             return {"type": "error", "message": err}
         return None
+    if cmd == "export":
+        data = trainer.export_run()
+        if data is None:
+            return {"type": "error", "message": "Nothing to export yet — start training first."}
+        return {"type": "export", "data": data}
     if cmd == "toggle":
         trainer.toggle_pause()
     elif cmd == "pause":
@@ -375,11 +506,11 @@ def _handle_command(msg: dict) -> dict[str, Any] | None:
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
+    session_id = session_id_from_websocket(websocket)
+    trainer = sessions.touch(session_id)
     await websocket.accept()
     try:
-        await websocket.send_text(
-            json.dumps({"type": "init", "config": trainer.static_config()})
-        )
+        await websocket.send_text(json.dumps({"type": "init", "config": trainer.static_config()}))
         await websocket.send_text(json.dumps({"type": "state", "data": trainer.snapshot()}))
     except Exception:
         await websocket.close()
@@ -389,6 +520,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         last_payload: str | None = None
         while True:
             await asyncio.sleep(SNAPSHOT_INTERVAL_S)
+            sessions.touch(session_id)
             payload = json.dumps({"type": "state", "data": trainer.snapshot()})
             if payload != last_payload:
                 await websocket.send_text(payload)
@@ -398,17 +530,16 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     try:
         while True:
             raw = await websocket.receive_text()
+            sessions.touch(session_id)
             try:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
                 continue
             if isinstance(msg, dict):
-                err = _handle_command(msg)
+                err = _handle_command(trainer, msg)
                 if err is not None:
                     await websocket.send_text(json.dumps(err))
-                await websocket.send_text(
-                    json.dumps({"type": "state", "data": trainer.snapshot()})
-                )
+                await websocket.send_text(json.dumps({"type": "state", "data": trainer.snapshot()}))
     except WebSocketDisconnect:
         pass
     finally:
@@ -417,13 +548,34 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             await sender_task
 
 
+def _default_host() -> str:
+    return "0.0.0.0" if is_production() else "127.0.0.1"
+
+
+def _default_port() -> int:
+    return int(os.environ.get("PORT", "8000"))
+
+
+def _should_open_browser(args: argparse.Namespace) -> bool:
+    return not args.no_browser and not is_production()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="run.py web",
         description="Launch the Q-learning training dashboard",
     )
-    parser.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+    parser.add_argument(
+        "--host",
+        default=_default_host(),
+        help="Bind host (default: 127.0.0.1 locally, 0.0.0.0 in production)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=_default_port(),
+        help="Bind port (default: $PORT or 8000)",
+    )
     parser.add_argument(
         "--no-browser",
         action="store_true",
@@ -436,14 +588,16 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not args.no_browser:
+    port = int(os.environ.get("PORT", args.port))
+
+    if _should_open_browser(args):
         host = "localhost" if args.host in ("0.0.0.0", "127.0.0.1") else args.host
-        webbrowser.open(f"http://{host}:{args.port}", new=2)
+        webbrowser.open(f"http://{host}:{port}", new=2)
 
     uvicorn.run(
         "web.server:app",
         host=args.host,
-        port=args.port,
+        port=port,
         reload=args.reload,
         log_level="info",
     )
