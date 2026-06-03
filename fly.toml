@@ -1,6 +1,6 @@
 # fly.toml app name is set by `fly launch`; replace if deploying manually.
 app = "q-learning-trainer"
-primary_region = "iad"
+primary_region = "yyz"
 
 [build]
 
