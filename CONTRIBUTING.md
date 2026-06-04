@@ -230,7 +230,7 @@ python run.py web --no-browser --port 8765
 # In a browser, hit http://127.0.0.1:8765
 # Setup: drag agent + bank onto grid, add buildings, Start Training
 # Training: status pill, heatmap, agent moves, chart updates,
-# pause/resume, speed selector (1-6), save, model tests after completion
+# pause/resume, speed selector (1-6), export run (E), model tests after completion
 # Reset (R): returns to environment editor
 # Watch the browser DevTools console for errors
 ```

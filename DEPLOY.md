@@ -62,7 +62,7 @@ python run.py web
 |---------|-------|----------------------------------------|
 | Bind host | `127.0.0.1` | `0.0.0.0` |
 | Auto-open browser | yes | no |
-| Save to `assets/` | yes | hidden (use Export instead) |
+| Auto-save to `assets/` on finish | yes | no (use Export instead) |
 | Session isolation | yes | yes |
 
 ## Scaling notes

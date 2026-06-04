@@ -11,7 +11,7 @@ pip install -r requirements.txt
 python run.py
 ```
 
-`python run.py` defaults to the `web` subcommand: it starts a local FastAPI server on `http://127.0.0.1:8000` and opens your browser to it. In setup mode, place an **agent** and **bank** onto the grid (required), optionally add **buildings**, tune hyperparameters in the **Hyperparameter Lab**, then click **Start Training**. From there you can pause, change training speed, save the trained Q-table to `assets/`, export a run as JSON, run post-training model checks, or return to the environment editor.
+`python run.py` defaults to the `web` subcommand: it starts a local FastAPI server on `http://127.0.0.1:8000` and opens your browser to it. In setup mode, place an **agent** and **bank** onto the grid (required), optionally add **buildings**, tune hyperparameters in the **Hyperparameter Lab**, then click **Start Training**. From there you can pause, change training speed, export a run as JSON, run post-training model checks, or return to the environment editor.
 
 The dashboard needs a working WebSocket (`uvicorn[standard]` in `requirements.txt`). Wait for the connection indicator to show **Connected** before designing the map — sprites and the palette load from the server `init` message over `/ws`.
 
@@ -96,7 +96,7 @@ What you see after training starts:
 
 - **Policy heatmap** — plasma gradient of `V(s) = max_a Q(s, a)` per tile, with white triangular arrows showing the greedy action and a cyan focus ring on the agent's current cell. A gradient legend below reports the current `V min` / `V max` mapping.
 - **Metrics** — Episode, Epsilon (cyan), Last episode length, Avg of last 100 episodes (amber).
-- **Controls** — Pause, **Export run to disk** (`E`), save Q-table to `assets/` (`S`, local only), edit environment (`R`), plus a 6-segment training-speed selector (1, 5, 25, 100, 500, 2000 steps per frame). The active level is highlighted.
+- **Controls** — Pause, **Export run to disk** (`E`), edit environment (`R`), plus a 6-segment training-speed selector (1, 5, 25, 100, 500, 2000 steps per frame). The active level is highlighted.
 - **Steps-per-episode chart** — cyan per-episode line + amber 50-episode moving average. Subtitle turns emerald when the 100-episode average is near the layout's shortest obstacle-aware path.
 - **Model tests** (after training completes) — LeetCode-style expandable cases (greedy path reaches bank, path length, obstacle avoidance, convergence, etc.) with expected vs actual details.
 
@@ -117,7 +117,6 @@ Keyboard shortcuts (browser tab focused, **training mode only**):
 | `Space` | Pause / resume |
 | `1` – `6` | Set training speed |
 | `←` / `→` (or `+` / `-`) | Cycle speed levels |
-| `S` | Save the current Q-table to `assets/` (hidden on the public Fly demo) |
 | `E` | Export run to disk (layout, config, lengths, Q-table JSON) |
 | `R` | Return to the environment editor |
 
@@ -139,7 +138,7 @@ Production notes:
 
 - Set `PORT = "8080"` in `fly.toml` `[env]` so the app listens on the same port as `internal_port` (fixes Fly 502 / “refused connection” errors).
 - Use `uvicorn[standard]` so WebSockets work (sprites and training require `/ws`).
-- `QLEARNING_ENV=production` binds `0.0.0.0`, skips writing to `assets/` on the server, and hides **Save to assets/** in the UI.
+- `QLEARNING_ENV=production` binds `0.0.0.0` and skips writing to `assets/` on the server (use **Export run** instead).
 
 ## Headless Training
 
@@ -158,7 +157,7 @@ After training the script prints the greedy policy path (start to bank) and writ
 - `assets/q_table.npy` — NumPy array of shape `(12, 9, 4)`
 - `assets/q_meta.json` — Hyperparameters, env config, and greedy path
 
-The web dashboard writes these same files when training finishes (or when you hit `S`). In the dashboard, these values can be overridden per run via Hyperparameter Lab without changing Python source defaults.
+The web dashboard auto-writes these files when training finishes locally (not on Fly). Use **Export run** (`E`) to download a run anytime. Hyperparameter Lab overrides apply per run without changing Python source defaults.
 
 ## Manual Mode
 
