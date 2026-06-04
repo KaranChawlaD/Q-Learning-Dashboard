@@ -6,6 +6,7 @@ primary_region = "yyz"
 
 [env]
   QLEARNING_ENV = "production"
+  PORT = "8080"
 
 [http_service]
   internal_port = 8080
