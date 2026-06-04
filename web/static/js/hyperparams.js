@@ -74,7 +74,7 @@ export function applyHyperparameterDefaults(trainConfig) {
   for (const field of FIELD_MAP) {
     setFieldValue(field, defaults[field.key]);
   }
-  setValidationMessage("Tip: tweak values to compare convergence behavior.");
+  setValidationMessage("Tip: use ⓘ beside each label to see its role in the Q-learning update.");
 }
 
 function currentValues() {
@@ -108,7 +108,7 @@ function syncField(field, source) {
   const sourceEl = source === "range" ? rangeEl : numberEl;
   const targetEl = source === "range" ? numberEl : rangeEl;
   targetEl.value = normalizeValue(sourceEl.value, field.type);
-  setValidationMessage("Tip: tweak values to compare convergence behavior.");
+  setValidationMessage("Tip: use ⓘ beside each label to see its role in the Q-learning update.");
 }
 
 function bindField(field) {

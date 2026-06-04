@@ -21,6 +21,7 @@
         <p class="subtitle" id="subtitle">Design your gridworld, then train</p>
       </div>
       <div class="topbar-right">
+        <button type="button" class="howto-open-btn" id="howto-open-btn">How to</button>
         <div class="connection" id="connection">
           <span class="dot"></span><span class="label">Connecting…</span>
         </div>
@@ -84,51 +85,78 @@
           <button type="button" class="lab-reset-btn" id="lab-reset-btn">Reset defaults</button>
         </header>
         <div class="lab-grid">
-          <label class="lab-field">
-            <span class="lab-label">Alpha</span>
-            <input type="range" id="hp-alpha-range" min="0.01" max="1" step="0.01" />
-            <input type="number" id="hp-alpha-number" min="0.01" max="1" step="0.01" />
-          </label>
-          <label class="lab-field">
-            <span class="lab-label">Gamma</span>
-            <input type="range" id="hp-gamma-range" min="0.01" max="0.999" step="0.001" />
-            <input type="number" id="hp-gamma-number" min="0.01" max="0.999" step="0.001" />
-          </label>
-          <label class="lab-field">
-            <span class="lab-label">Epsilon start</span>
-            <input type="range" id="hp-epsilon-start-range" min="0" max="1" step="0.01" />
-            <input type="number" id="hp-epsilon-start-number" min="0" max="1" step="0.01" />
-          </label>
-          <label class="lab-field">
-            <span class="lab-label">Epsilon end</span>
-            <input type="range" id="hp-epsilon-end-range" min="0" max="1" step="0.01" />
-            <input type="number" id="hp-epsilon-end-number" min="0" max="1" step="0.01" />
-          </label>
-          <label class="lab-field">
-            <span class="lab-label">Epsilon decay episodes</span>
-            <input type="range" id="hp-epsilon-decay-range" min="10" max="10000" step="10" />
-            <input type="number" id="hp-epsilon-decay-number" min="10" max="10000" step="10" />
-          </label>
-          <label class="lab-field">
-            <span class="lab-label">Reward (goal)</span>
-            <input type="range" id="hp-reward-goal-range" min="1" max="300" step="1" />
-            <input type="number" id="hp-reward-goal-number" min="1" max="300" step="1" />
-          </label>
-          <label class="lab-field">
-            <span class="lab-label">Reward (step)</span>
-            <input type="range" id="hp-reward-step-range" min="-20" max="0" step="0.5" />
-            <input type="number" id="hp-reward-step-number" min="-20" max="0" step="0.5" />
-          </label>
-          <label class="lab-field">
-            <span class="lab-label">Reward (blocked)</span>
-            <input type="range" id="hp-reward-blocked-range" min="-50" max="0" step="0.5" />
-            <input type="number" id="hp-reward-blocked-number" min="-50" max="0" step="0.5" />
-          </label>
-          <label class="lab-field">
-            <span class="lab-label">Seed</span>
-            <input type="range" id="hp-seed-range" min="0" max="100000" step="1" />
-            <input type="number" id="hp-seed-number" min="0" max="100000" step="1" />
-          </label>
+          <div class="lab-field">
+            <div class="lab-field-head">
+              <span class="lab-label" id="hp-label-alpha">Alpha</span>
+              <button type="button" class="hp-info-btn" data-hp-info="alpha" aria-labelledby="hp-label-alpha" aria-label="About alpha">ⓘ</button>
+            </div>
+            <input type="range" id="hp-alpha-range" min="0.01" max="1" step="0.01" aria-labelledby="hp-label-alpha" />
+            <input type="number" id="hp-alpha-number" min="0.01" max="1" step="0.01" aria-labelledby="hp-label-alpha" />
+          </div>
+          <div class="lab-field">
+            <div class="lab-field-head">
+              <span class="lab-label" id="hp-label-gamma">Gamma</span>
+              <button type="button" class="hp-info-btn" data-hp-info="gamma" aria-labelledby="hp-label-gamma" aria-label="About gamma">ⓘ</button>
+            </div>
+            <input type="range" id="hp-gamma-range" min="0.01" max="0.999" step="0.001" aria-labelledby="hp-label-gamma" />
+            <input type="number" id="hp-gamma-number" min="0.01" max="0.999" step="0.001" aria-labelledby="hp-label-gamma" />
+          </div>
+          <div class="lab-field">
+            <div class="lab-field-head">
+              <span class="lab-label" id="hp-label-epsilon-start">Epsilon start</span>
+              <button type="button" class="hp-info-btn" data-hp-info="epsilon_start" aria-labelledby="hp-label-epsilon-start" aria-label="About epsilon start">ⓘ</button>
+            </div>
+            <input type="range" id="hp-epsilon-start-range" min="0" max="1" step="0.01" aria-labelledby="hp-label-epsilon-start" />
+            <input type="number" id="hp-epsilon-start-number" min="0" max="1" step="0.01" aria-labelledby="hp-label-epsilon-start" />
+          </div>
+          <div class="lab-field">
+            <div class="lab-field-head">
+              <span class="lab-label" id="hp-label-epsilon-end">Epsilon end</span>
+              <button type="button" class="hp-info-btn" data-hp-info="epsilon_end" aria-labelledby="hp-label-epsilon-end" aria-label="About epsilon end">ⓘ</button>
+            </div>
+            <input type="range" id="hp-epsilon-end-range" min="0" max="1" step="0.01" aria-labelledby="hp-label-epsilon-end" />
+            <input type="number" id="hp-epsilon-end-number" min="0" max="1" step="0.01" aria-labelledby="hp-label-epsilon-end" />
+          </div>
+          <div class="lab-field">
+            <div class="lab-field-head">
+              <span class="lab-label" id="hp-label-epsilon-decay">Epsilon decay episodes</span>
+              <button type="button" class="hp-info-btn" data-hp-info="epsilon_decay_episodes" aria-labelledby="hp-label-epsilon-decay" aria-label="About epsilon decay">ⓘ</button>
+            </div>
+            <input type="range" id="hp-epsilon-decay-range" min="10" max="10000" step="10" aria-labelledby="hp-label-epsilon-decay" />
+            <input type="number" id="hp-epsilon-decay-number" min="10" max="10000" step="10" aria-labelledby="hp-label-epsilon-decay" />
+          </div>
+          <div class="lab-field">
+            <div class="lab-field-head">
+              <span class="lab-label" id="hp-label-reward-goal">Reward (goal)</span>
+              <button type="button" class="hp-info-btn" data-hp-info="reward_goal" aria-labelledby="hp-label-reward-goal" aria-label="About goal reward">ⓘ</button>
+            </div>
+            <input type="range" id="hp-reward-goal-range" min="1" max="300" step="1" aria-labelledby="hp-label-reward-goal" />
+            <input type="number" id="hp-reward-goal-number" min="1" max="300" step="1" aria-labelledby="hp-label-reward-goal" />
+          </div>
+          <div class="lab-field">
+            <div class="lab-field-head">
+              <span class="lab-label" id="hp-label-reward-step">Reward (step)</span>
+              <button type="button" class="hp-info-btn" data-hp-info="reward_step" aria-labelledby="hp-label-reward-step" aria-label="About step reward">ⓘ</button>
+            </div>
+            <input type="range" id="hp-reward-step-range" min="-20" max="0" step="0.5" aria-labelledby="hp-label-reward-step" />
+            <input type="number" id="hp-reward-step-number" min="-20" max="0" step="0.5" aria-labelledby="hp-label-reward-step" />
+          </div>
+          <div class="lab-field">
+            <div class="lab-field-head">
+              <span class="lab-label" id="hp-label-reward-blocked">Reward (blocked)</span>
+              <button type="button" class="hp-info-btn" data-hp-info="reward_blocked" aria-labelledby="hp-label-reward-blocked" aria-label="About blocked reward">ⓘ</button>
+            </div>
+            <input type="range" id="hp-reward-blocked-range" min="-50" max="0" step="0.5" aria-labelledby="hp-label-reward-blocked" />
+            <input type="number" id="hp-reward-blocked-number" min="-50" max="0" step="0.5" aria-labelledby="hp-label-reward-blocked" />
+          </div>
+          <div class="lab-field">
+            <div class="lab-field-head">
+              <span class="lab-label" id="hp-label-seed">Seed</span>
+              <button type="button" class="hp-info-btn" data-hp-info="seed" aria-labelledby="hp-label-seed" aria-label="About seed">ⓘ</button>
+            </div>
+            <input type="range" id="hp-seed-range" min="0" max="100000" step="1" aria-labelledby="hp-label-seed" />
+            <input type="number" id="hp-seed-number" min="0" max="100000" step="1" aria-labelledby="hp-label-seed" />
+          </div>
         </div>
         <p class="lab-validation" id="lab-validation" aria-live="polite"></p>
       </section>
@@ -208,6 +236,35 @@
   </div>
 
   <div class="drag-ghost hidden" id="drag-ghost" aria-hidden="true"></div>
+
+  <div class="modal-overlay hidden" id="howto-modal" role="dialog" aria-modal="true" aria-labelledby="howto-title" aria-hidden="true">
+    <div class="modal-panel howto-panel">
+      <header class="modal-head">
+        <h2 id="howto-title">How to use this simulator</h2>
+        <button type="button" class="modal-close-btn" id="howto-close-btn" aria-label="Close">×</button>
+      </header>
+      <div class="howto-steps" id="howto-steps"></div>
+      <footer class="modal-foot">
+        <label class="howto-dismiss-label">
+          <input type="checkbox" id="howto-dismiss" />
+          Don’t show again on load
+        </label>
+        <button type="button" class="modal-primary-btn" id="howto-got-it-btn">Got it</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="hp-info-modal" role="dialog" aria-modal="true" aria-labelledby="hp-info-title" aria-hidden="true">
+    <div class="modal-panel hp-info-panel">
+      <header class="modal-head">
+        <h2 id="hp-info-title"></h2>
+        <button type="button" class="modal-close-btn" id="hp-info-close-btn" aria-label="Close">×</button>
+      </header>
+      <pre class="hp-info-equation" id="hp-info-equation"></pre>
+      <div class="hp-info-body" id="hp-info-body"></div>
+      <p class="hp-info-tip" id="hp-info-tip"></p>
+    </div>
+  </div>
 
   <script type="module" src="/static/js/main.js"></script>
 </body>

@@ -9,6 +9,7 @@ import {
 import { bindRunImport, promptRunImport, requestRunExport } from "./export.js";
 import { requestRender } from "./ui.js";
 import { sendCommand } from "./commands.js";
+import { bindEducation } from "./education.js";
 import { connect, startTrainingFromDraft } from "./websocket.js";
 import { appState } from "./state.js";
 
@@ -61,4 +62,5 @@ function bindControls() {
 
 bindSetupEditor();
 bindControls();
+bindEducation();
 connect();

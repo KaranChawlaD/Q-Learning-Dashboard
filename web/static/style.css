@@ -454,11 +454,41 @@ body {
   align-items: center;
 }
 
-.lab-label {
+.lab-field-head {
   grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lab-label {
   font-size: 11px;
   color: var(--text-dim);
   font-weight: 600;
+}
+
+.hp-info-btn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.08);
+  color: var(--cyan);
+  font-size: 12px;
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 120ms,
+    border-color 120ms;
+}
+
+.hp-info-btn:hover {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.45);
 }
 
 .lab-field input[type="range"] {
@@ -971,4 +1001,214 @@ kbd {
 
 .test-io-value.is-fail {
   color: var(--rose);
+}
+
+.howto-open-btn {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.howto-open-btn:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(8, 12, 22, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+.modal-panel {
+  width: min(520px, 100%);
+  max-height: min(88vh, 720px);
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.howto-panel {
+  width: min(560px, 100%);
+}
+
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.modal-close-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.howto-steps {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.howto-step h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cyan);
+}
+
+.howto-step p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.howto-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.howto-figure {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: rgba(11, 15, 26, 0.6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+
+.howto-diagram {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(11, 15, 26, 0.55);
+  border: 1px solid var(--border);
+  font-family: "JetBrains Mono", "Consolas", monospace;
+  font-size: 12px;
+  color: var(--amber);
+  text-align: center;
+}
+
+.modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.howto-dismiss-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.modal-primary-btn {
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: var(--radius-md);
+  background: rgba(56, 189, 248, 0.14);
+  color: var(--cyan);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.modal-primary-btn:hover {
+  background: rgba(56, 189, 248, 0.22);
+}
+
+.hp-info-panel {
+  width: min(480px, 100%);
+}
+
+.hp-info-equation {
+  margin: 0;
+  padding: 14px 20px;
+  background: rgba(11, 15, 26, 0.65);
+  border-bottom: 1px solid var(--border);
+  font-family: "JetBrains Mono", "Consolas", monospace;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--amber);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.hp-info-body {
+  padding: 14px 20px 0;
+}
+
+.hp-info-body p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.hp-info-tip {
+  margin: 8px 20px 18px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(52, 211, 153, 0.08);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  font-size: 12px;
+  color: var(--emerald);
+  line-height: 1.45;
 }
