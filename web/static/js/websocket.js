@@ -86,14 +86,6 @@ export function connect() {
       buildPalette();
       bindHyperparameterLab();
       applyHyperparameterDefaults(msg.config.trainConfig);
-      if (msg.config.production) {
-        els.saveServerBtn.classList.add("hidden");
-        els.saveServerBtn.setAttribute("aria-hidden", "true");
-      } else {
-        els.saveServerBtn.classList.remove("hidden");
-        els.saveServerBtn.setAttribute("aria-hidden", "false");
-        els.saveServerLabel.textContent = "Save Q-table to assets/";
-      }
       setPanelMode("setup");
       updateSetupValidation();
       requestRender();

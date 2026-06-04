@@ -214,10 +214,6 @@ class Trainer:
         else:
             self.paused = not self.paused
 
-    def save_now(self) -> None:
-        if self.layout is not None:
-            self._persist_artifacts()
-
     def _layout_dict(self) -> dict[str, Any] | None:
         if self.layout is None:
             return None
@@ -497,8 +493,6 @@ def _handle_command(trainer: Trainer, msg: dict) -> dict[str, Any] | None:
     elif cmd == "speed":
         idx = int(msg.get("idx", trainer.speed_idx))
         trainer.set_speed(idx)
-    elif cmd == "save":
-        trainer.save_now()
     elif cmd == "reset":
         trainer.reset()
     return None

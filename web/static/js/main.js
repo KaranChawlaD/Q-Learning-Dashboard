@@ -34,10 +34,6 @@ function bindControls() {
     if (event.code === "Space") {
       event.preventDefault();
       sendCommand({ type: "toggle" });
-    } else if (event.key === "s" || event.key === "S") {
-      if (!appState.config?.production) {
-        sendCommand({ type: "save" });
-      }
     } else if (event.key === "e" || event.key === "E") {
       requestRunExport(sendCommand);
     } else if (event.key === "r" || event.key === "R") {

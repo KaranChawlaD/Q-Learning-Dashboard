@@ -51,8 +51,6 @@ export const els = {
   testsSubtitle: document.getElementById("tests-subtitle"),
   testsSummary: document.getElementById("tests-summary"),
   testsList: document.getElementById("tests-list"),
-  saveServerBtn: document.getElementById("save-server-btn"),
-  saveServerLabel: document.getElementById("save-server-label"),
   exportRunBtn: document.getElementById("export-run-btn"),
   gridCanvas: document.getElementById("grid-canvas"),
   chartCanvas: document.getElementById("chart-canvas"),
