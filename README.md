@@ -90,7 +90,7 @@ Training and evaluation code accept a `GridLayout` so the dashboard and headless
 Setup-mode panel layout:
 
 - **Left (Environment + Design Environment)** — map canvas plus palette-based placement controls.
-- **Right (Hyperparameter Lab)** — pre-training controls for `alpha`, `gamma`, epsilon schedule (`start`, `end`, `decay episodes`), rewards (`goal`, `step`, `blocked`), and `seed`.
+- **Right (Hyperparameter Lab)** — pre-training controls for `alpha`, `gamma`, epsilon schedule (`start`, `end`, `decay episodes`), rewards (`goal`, `step`, `blocked`), and `seed`. Each parameter has an **ⓘ** button explaining its role in the Q-learning update. A **How to** guide opens on first visit (top bar to reopen).
 
 What you see after training starts:
 
