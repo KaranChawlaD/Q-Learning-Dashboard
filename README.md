@@ -2,6 +2,8 @@
 
 A small reinforcement-learning project: a tabular Q-learning agent learns to navigate a 12 × 9 gridworld from a start cell to a bank (goal), avoiding building obstacles. The headline interface is a browser dashboard where you **design the map** (drag agent, bank, and buildings onto the grid), then stream live training over a WebSocket from a Python backend.
 
+**Live demo:** [https://q-learning-trainer.fly.dev/](https://q-learning-trainer.fly.dev/) — each browser tab gets its own training session (no login). Export a finished run as JSON with **Export run to disk** (`E`).
+
 ## Quick Start
 
 ```bash
@@ -9,7 +11,9 @@ pip install -r requirements.txt
 python run.py
 ```
 
-`python run.py` defaults to the `web` subcommand: it starts a local FastAPI server on `http://127.0.0.1:8000` and opens your browser to it. In setup mode, place an **agent** and **bank** onto the grid (required), optionally add **buildings**, tune hyperparameters in the **Hyperparameter Lab**, then click **Start Training**. From there you can pause, change training speed, save the trained Q-table, run post-training model checks, or return to the environment editor.
+`python run.py` defaults to the `web` subcommand: it starts a local FastAPI server on `http://127.0.0.1:8000` and opens your browser to it. In setup mode, place an **agent** and **bank** onto the grid (required), optionally add **buildings**, tune hyperparameters in the **Hyperparameter Lab**, then click **Start Training**. From there you can pause, change training speed, save the trained Q-table to `assets/`, export a run as JSON, run post-training model checks, or return to the environment editor.
+
+The dashboard needs a working WebSocket (`uvicorn[standard]` in `requirements.txt`). Wait for the connection indicator to show **Connected** before designing the map — sprites and the palette load from the server `init` message over `/ws`.
 
 ## Subcommands
 
@@ -56,7 +60,10 @@ Q-Learning/
 │           ├── chart.js
 │           └── …
 ├── run.py                 # entry point (dispatches to web|train|manual)
-├── requirements.txt       # runtime Python dependencies
+├── Dockerfile             # production image for Fly.io
+├── fly.toml               # Fly.io app config (region, PORT, http_service)
+├── DEPLOY.md              # Fly.io deploy guide
+├── requirements.txt       # runtime Python dependencies (incl. uvicorn[standard])
 ├── requirements-dev.txt   # adds dev tools (Ruff); includes requirements.txt
 ├── pyproject.toml         # Ruff linter/formatter configuration
 ├── CONTRIBUTING.md        # contributor guide
@@ -89,7 +96,7 @@ What you see after training starts:
 
 - **Policy heatmap** — plasma gradient of `V(s) = max_a Q(s, a)` per tile, with white triangular arrows showing the greedy action and a cyan focus ring on the agent's current cell. A gradient legend below reports the current `V min` / `V max` mapping.
 - **Metrics** — Episode, Epsilon (cyan), Last episode length, Avg of last 100 episodes (amber).
-- **Controls** — clickable Pause / Save / Edit environment buttons plus a 6-segment training-speed selector (1, 5, 25, 100, 500, 2000 steps per frame). The active level is highlighted.
+- **Controls** — Pause, **Export run to disk** (`E`), save Q-table to `assets/` (`S`, local only), edit environment (`R`), plus a 6-segment training-speed selector (1, 5, 25, 100, 500, 2000 steps per frame). The active level is highlighted.
 - **Steps-per-episode chart** — cyan per-episode line + amber 50-episode moving average. Subtitle turns emerald when the 100-episode average is near the layout's shortest obstacle-aware path.
 - **Model tests** (after training completes) — LeetCode-style expandable cases (greedy path reaches bank, path length, obstacle avoidance, convergence, etc.) with expected vs actual details.
 
@@ -110,12 +117,29 @@ Keyboard shortcuts (browser tab focused, **training mode only**):
 | `Space` | Pause / resume |
 | `1` – `6` | Set training speed |
 | `←` / `→` (or `+` / `-`) | Cycle speed levels |
-| `S` | Save the current Q-table to `assets/` |
+| `S` | Save the current Q-table to `assets/` (hidden on the public Fly demo) |
+| `E` | Export run to disk (layout, config, lengths, Q-table JSON) |
 | `R` | Return to the environment editor |
 
 **Setup mode:** drag agent, bank, and buildings from the Design Environment panel onto the grid (building palette items stay available so you can place multiple of each type); right-click a cell to clear it; drag an on-grid piece to move it. Adjust Hyperparameter Lab inputs before starting training (includes a one-click reset to defaults). The **Start Training** button is disabled until the layout is solvable (agent can reach bank via cardinal moves).
 
-The dashboard auto-reconnects if the server restarts.
+The dashboard auto-reconnects if the server restarts. On the hosted demo, each visitor gets an isolated trainer via an HttpOnly session cookie; idle sessions are removed after 30 minutes. Training state is in memory only — use **Export run** before closing the tab if you want to keep a run.
+
+## Deploy on Fly.io
+
+Phase 1 hosting uses Docker + `fly.toml` (no database or login). See [`DEPLOY.md`](DEPLOY.md) for the full guide. Short version:
+
+```bash
+fly auth login
+fly apps create <your-app-name>   # update app = "..." in fly.toml if needed
+fly deploy
+```
+
+Production notes:
+
+- Set `PORT = "8080"` in `fly.toml` `[env]` so the app listens on the same port as `internal_port` (fixes Fly 502 / “refused connection” errors).
+- Use `uvicorn[standard]` so WebSockets work (sprites and training require `/ws`).
+- `QLEARNING_ENV=production` binds `0.0.0.0`, skips writing to `assets/` on the server, and hides **Save to assets/** in the UI.
 
 ## Headless Training
 
@@ -161,11 +185,18 @@ Settings live in `pyproject.toml` (`[tool.ruff]`).
 ## Roadmap
 
 - Function approximation / DQN for larger or continuous state spaces
-- Persist training metrics across runs for offline comparison
+- Phase 2: accounts, saved runs in the cloud, compare runs over time
 - Side-by-side dashboard mode comparing two hyperparameter configurations
 - Optional “load default layout” preset in the environment editor
 
 ## Version History
+
+### v1.0.0 - Public Fly.io demo (Phase 1)
+
+- Deployed dashboard to Fly.io with per-browser session isolation (HttpOnly cookie)
+- Added client-side **Export run** (JSON: layout, hyperparameters, episode lengths, full Q-table)
+- Added `Dockerfile`, `fly.toml`, and `DEPLOY.md`; production uses `PORT=8080` and `uvicorn[standard]` for WebSockets
+- Hosted demo: [q-learning-trainer.fly.dev](https://q-learning-trainer.fly.dev/)
 
 ### v0.9.1 - Layout Reachability + Obstacle-Aware Optimum
 
