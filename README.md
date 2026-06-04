@@ -2,7 +2,7 @@
 
 A small reinforcement-learning project: a tabular Q-learning agent learns to navigate a 12 × 9 gridworld from a start cell to a bank (goal), avoiding building obstacles. The headline interface is a browser dashboard where you **design the map** (drag agent, bank, and buildings onto the grid), then stream live training over a WebSocket from a Python backend.
 
-**Live demo:** [https://q-learning-trainer.fly.dev/](https://q-learning-trainer.fly.dev/) — each browser tab gets its own training session (no login). Export a finished run as JSON with **Export run to disk** (`E`).
+**Live demo:** [https://q-learning-trainer.fly.dev/](https://q-learning-trainer.fly.dev/) — each browser tab gets its own training session (no login). Export or import runs as JSON (**Export** `E`, **Import** in setup or controls).
 
 ## Quick Start
 
@@ -11,7 +11,7 @@ pip install -r requirements.txt
 python run.py
 ```
 
-`python run.py` defaults to the `web` subcommand: it starts a local FastAPI server on `http://127.0.0.1:8000` and opens your browser to it. In setup mode, place an **agent** and **bank** onto the grid (required), optionally add **buildings**, tune hyperparameters in the **Hyperparameter Lab**, then click **Start Training**. From there you can pause, change training speed, export a run as JSON, run post-training model checks, or return to the environment editor.
+`python run.py` defaults to the `web` subcommand: it starts a local FastAPI server on `http://127.0.0.1:8000` and opens your browser to it. In setup mode, place an **agent** and **bank** onto the grid (required), optionally add **buildings**, tune hyperparameters in the **Hyperparameter Lab**, then click **Start Training**. From there you can pause, change training speed, export or **import** a run as JSON, run post-training model checks, or return to the environment editor.
 
 The dashboard needs a working WebSocket (`uvicorn[standard]` in `requirements.txt`). Wait for the connection indicator to show **Connected** before designing the map — sprites and the palette load from the server `init` message over `/ws`.
 
@@ -96,7 +96,7 @@ What you see after training starts:
 
 - **Policy heatmap** — plasma gradient of `V(s) = max_a Q(s, a)` per tile, with white triangular arrows showing the greedy action and a cyan focus ring on the agent's current cell. A gradient legend below reports the current `V min` / `V max` mapping.
 - **Metrics** — Episode, Epsilon (cyan), Last episode length, Avg of last 100 episodes (amber).
-- **Controls** — Pause, **Export run to disk** (`E`), edit environment (`R`), plus a 6-segment training-speed selector (1, 5, 25, 100, 500, 2000 steps per frame). The active level is highlighted.
+- **Controls** — Pause, **Export run** (`E`), **Import run from JSON** (setup panel or controls), edit environment (`R`), plus a 6-segment training-speed selector (1, 5, 25, 100, 500, 2000 steps per frame). The active level is highlighted.
 - **Steps-per-episode chart** — cyan per-episode line + amber 50-episode moving average. Subtitle turns emerald when the 100-episode average is near the layout's shortest obstacle-aware path.
 - **Model tests** (after training completes) — LeetCode-style expandable cases (greedy path reaches bank, path length, obstacle avoidance, convergence, etc.) with expected vs actual details.
 
@@ -118,6 +118,7 @@ Keyboard shortcuts (browser tab focused, **training mode only**):
 | `1` – `6` | Set training speed |
 | `←` / `→` (or `+` / `-`) | Cycle speed levels |
 | `E` | Export run to disk (layout, config, lengths, Q-table JSON) |
+| `I` | Import run from JSON (setup mode) |
 | `R` | Return to the environment editor |
 
 **Setup mode:** drag agent, bank, and buildings from the Design Environment panel onto the grid (building palette items stay available so you can place multiple of each type); right-click a cell to clear it; drag an on-grid piece to move it. Adjust Hyperparameter Lab inputs before starting training (includes a one-click reset to defaults). The **Start Training** button is disabled until the layout is solvable (agent can reach bank via cardinal moves).
