@@ -59,9 +59,21 @@
         <p class="setup-validation" id="setup-validation" aria-live="polite">
           Place an agent and bank on the grid to begin.
         </p>
-        <button type="button" class="start-training-btn" id="start-training-btn" disabled>
-          Start Training
-        </button>
+        <div class="setup-actions">
+          <button type="button" class="start-training-btn" id="start-training-btn" disabled>
+            Start Training
+          </button>
+          <button type="button" class="import-run-btn" id="import-run-btn">
+            Import run from JSON
+          </button>
+        </div>
+        <input
+          type="file"
+          id="import-run-input"
+          accept=".json,application/json"
+          hidden
+          aria-hidden="true"
+        />
       </section>
     </section>
 
@@ -157,6 +169,9 @@
         </div>
         <button class="ctl" data-cmd="export" id="export-run-btn">
           <kbd>E</kbd><span>Export run to disk</span>
+        </button>
+        <button class="ctl" type="button" id="import-run-training-btn">
+          <kbd>I</kbd><span>Import run from JSON</span>
         </button>
         <button class="ctl" data-cmd="reset">
           <kbd>R</kbd><span>Edit environment</span>

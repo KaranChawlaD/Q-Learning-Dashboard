@@ -214,6 +214,114 @@ class Trainer:
         else:
             self.paused = not self.paused
 
+    def import_run(self, data: dict[str, Any]) -> tuple[bool, str, dict[str, Any] | None]:
+        """Restore a run from an export JSON payload. Returns optional client-only setup data."""
+        if data.get("version") != 1:
+            return False, "Unsupported export version (expected version 1).", None
+
+        grid_cols = int(data.get("grid_cols", GRID_COLS))
+        grid_rows = int(data.get("grid_rows", GRID_ROWS))
+        if grid_cols != GRID_COLS or grid_rows != GRID_ROWS:
+            return (
+                False,
+                f"Grid size must be {GRID_COLS}×{GRID_ROWS} (file has {grid_cols}×{grid_rows}).",
+                None,
+            )
+
+        layout_raw = data.get("layout")
+        if not isinstance(layout_raw, dict):
+            return False, "Missing layout object.", None
+
+        start = layout_raw.get("start")
+        bank = layout_raw.get("bank")
+        if not start or not bank:
+            return False, "Layout must include start and bank.", None
+
+        building_placements = data.get("building_placements")
+        if building_placements is None:
+            buildings = layout_raw.get("buildings")
+            if isinstance(buildings, list):
+                building_placements = buildings
+
+        try:
+            layout = parse_layout(
+                start,
+                bank,
+                layout_raw.get("obstacles", []),
+                building_placements=building_placements,
+            )
+        except (KeyError, TypeError, ValueError, IndexError) as exc:
+            detail = str(exc).strip()
+            return False, detail if detail else "Invalid layout in import file.", None
+
+        ok, err = validate_layout(layout)
+        if not ok:
+            return False, err, None
+
+        config_raw = data.get("config")
+        if not isinstance(config_raw, dict):
+            return False, "Missing config object.", None
+        try:
+            cfg = _parse_train_config(config_raw, TrainConfig())
+        except ValueError as exc:
+            return False, str(exc), None
+
+        q_raw = data.get("q_table")
+        if q_raw is None:
+            self.mode = "setup"
+            self.layout = None
+            self.cfg = cfg
+            self._init_run_state()
+            client = {
+                "mode": "setup",
+                "train_config": asdict(cfg),
+                "layout": {
+                    "start": list(layout.start),
+                    "bank": list(layout.bank),
+                    "obstacles": [list(c) for c in sorted(layout.obstacles)],
+                    "buildings": layout.buildings(),
+                },
+            }
+            return True, "", client
+
+        try:
+            q = np.array(q_raw, dtype=np.float64)
+        except (TypeError, ValueError):
+            return False, "q_table must be a numeric array.", None
+        if q.shape != (GRID_COLS, GRID_ROWS, NUM_ACTIONS):
+            return (
+                False,
+                f"q_table shape must be ({GRID_COLS}, {GRID_ROWS}, {NUM_ACTIONS}).",
+                None,
+            )
+
+        lengths_raw = data.get("lengths", [])
+        if not isinstance(lengths_raw, list):
+            return False, "lengths must be a list.", None
+        lengths = [int(x) for x in lengths_raw]
+
+        ep = int(data.get("ep", len(lengths)))
+        ep = max(0, min(ep, cfg.episodes))
+        finished = bool(data.get("finished", False)) or ep >= cfg.episodes
+        if finished:
+            ep = cfg.episodes
+
+        self.cfg = cfg
+        self.layout = layout
+        self.q = q
+        self.lengths = lengths
+        self.ep = ep
+        self.finished = finished
+        self.mode = "training"
+        self.paused = True
+        self._artifacts_saved = finished
+        self.rng = random.Random(cfg.seed)
+        self.cell = layout.start
+        self.facing = "down"
+        self.steps_in_ep = 0
+        self.speed_idx = 1
+        return True, "", None
+
     def _layout_dict(self) -> dict[str, Any] | None:
         if self.layout is None:
             return None
@@ -483,6 +591,16 @@ def _handle_command(trainer: Trainer, msg: dict) -> dict[str, Any] | None:
         if data is None:
             return {"type": "error", "message": "Nothing to export yet — start training first."}
         return {"type": "export", "data": data}
+    if cmd == "import_run":
+        run = msg.get("run")
+        if not isinstance(run, dict):
+            return {"type": "error", "message": "run must be an object."}
+        ok, err, client = trainer.import_run(run)
+        if not ok:
+            return {"type": "error", "message": err}
+        if client is not None:
+            return {"type": "imported", "data": client}
+        return None
     if cmd == "toggle":
         trainer.toggle_pause()
     elif cmd == "pause":

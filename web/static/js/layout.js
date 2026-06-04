@@ -52,6 +52,22 @@ export function applyDisplayEnv(env) {
   };
 }
 
+/** Copy server env into the setup editor draft (e.g. after import or reset). */
+export function syncLayoutDraftFromEnv(env) {
+  if (!env) return;
+  const { layoutDraft } = appState;
+  layoutDraft.start = env.start ? [env.start[0], env.start[1]] : null;
+  layoutDraft.bank = env.bank ? [env.bank[0], env.bank[1]] : null;
+  const buildings = env.buildings || [];
+  layoutDraft.buildings = buildings.map((b, index) => ({
+    id: `building-import-${index}`,
+    file: b.file,
+    col: b.col,
+    row: b.row,
+  }));
+  appState.nextBuildingId = layoutDraft.buildings.length;
+}
+
 export function pieceAtCell(col, row) {
   const { layoutDraft } = appState;
   if (layoutDraft.start && layoutDraft.start[0] === col && layoutDraft.start[1] === row) {

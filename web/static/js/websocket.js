@@ -1,13 +1,22 @@
 import { sendCommand } from "./commands.js";
 import { els } from "./dom.js";
-import { downloadRunExport, requestRunExport } from "./export.js";
+import {
+  applyImportedSetup,
+  downloadRunExport,
+  requestRunExport,
+} from "./export.js";
 import {
   applyHyperparameterDefaults,
   bindHyperparameterLab,
   readHyperparameterPayload,
   setHyperparameterError,
 } from "./hyperparams.js";
-import { applyDisplayEnv, normalizeBuildingsDraft, updateSetupValidation } from "./layout.js";
+import {
+  applyDisplayEnv,
+  normalizeBuildingsDraft,
+  syncLayoutDraftFromEnv,
+  updateSetupValidation,
+} from "./layout.js";
 import { buildPalette, refreshPalette } from "./setup-editor.js";
 import { loadAllSprites } from "./sprites.js";
 import { requestRender, setConnectionState, setPanelMode } from "./ui.js";
@@ -91,9 +100,16 @@ export function connect() {
       requestRender();
     } else if (msg.type === "error") {
       resetStartTrainingButton();
-      updateSetupValidation(msg.message || "Could not start training.");
+      const message = msg.message || "Request failed.";
+      if (appState.uiMode === "training") {
+        els.subtitle.textContent = message;
+      } else {
+        updateSetupValidation(message);
+      }
     } else if (msg.type === "export") {
       downloadRunExport(msg.data);
+    } else if (msg.type === "imported") {
+      applyImportedSetup(msg.data);
     } else if (msg.type === "state") {
       appState.lastState = msg.data;
       if (appState.lastState.mode === "setup") {
@@ -102,9 +118,10 @@ export function connect() {
         refreshPalette();
         updateSetupValidation();
         requestRender();
-      } else       if (appState.config) {
+      } else if (appState.config) {
         setPanelMode("training");
         applyDisplayEnv(appState.lastState.env);
+        syncLayoutDraftFromEnv(appState.lastState.env);
         const canExport = appState.lastState.canExport;
         els.exportRunBtn.disabled = !canExport;
         els.exportRunBtn.setAttribute("aria-disabled", canExport ? "false" : "true");

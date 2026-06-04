@@ -6,7 +6,7 @@ import {
   onGridContextMenu,
   onGridPointerDown,
 } from "./setup-editor.js";
-import { requestRunExport } from "./export.js";
+import { bindRunImport, promptRunImport, requestRunExport } from "./export.js";
 import { requestRender } from "./ui.js";
 import { sendCommand } from "./commands.js";
 import { connect, startTrainingFromDraft } from "./websocket.js";
@@ -25,11 +25,20 @@ function bindControls() {
   });
 
   els.startTrainingBtn.addEventListener("click", startTrainingFromDraft);
+  els.importRunBtn.addEventListener("click", () => promptRunImport(els));
+  els.importRunTrainingBtn.addEventListener("click", () => promptRunImport(els));
+  bindRunImport(els, sendCommand);
   els.gridCanvas.addEventListener("pointerdown", onGridPointerDown);
   els.gridCanvas.addEventListener("contextmenu", onGridContextMenu);
 
   window.addEventListener("keydown", (event) => {
     if (event.target.matches("input, textarea, button")) return;
+    if (appState.uiMode === "setup") {
+      if (event.key === "i" || event.key === "I") {
+        promptRunImport(els);
+      }
+      return;
+    }
     if (appState.uiMode !== "training") return;
     if (event.code === "Space") {
       event.preventDefault();

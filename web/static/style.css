@@ -504,6 +504,12 @@ body {
   color: var(--emerald);
 }
 
+.setup-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .start-training-btn {
   width: 100%;
   padding: 12px 14px;
@@ -529,6 +535,27 @@ body {
 .start-training-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.import-run-btn {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: var(--radius-md);
+  background: rgba(251, 191, 36, 0.08);
+  color: var(--amber);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 120ms,
+    border-color 120ms;
+}
+
+.import-run-btn:hover {
+  background: rgba(251, 191, 36, 0.16);
+  border-color: rgba(251, 191, 36, 0.65);
 }
 
 .drag-ghost {
